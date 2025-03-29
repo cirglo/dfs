@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package nodeserver;
+
+option go_package = "./;proto";
+
+service NodeServer {
+  rpc GetBlockIds(GetBlockIdsRequest) returns (GetBlockIdsResponse);
+  rpc GetBlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse);
+  rpc GetBlock(GetBlockRequest) returns (GetBlockResponse);
+  rpc WriteBlock(WriteBlockRequest) returns (WriteBlockResponse);
+  rpc DeleteBlock(DeleteBlockRequest) returns (DeleteBlockResponse);
+  rpc CopyBlock(CopyBlockRequest) returns (CopyBlockResponse);
+}
+
+
+message BlockInfo {
+  string blockId = 1;
+  string fileId = 2;
+  uint32 crc = 3;
+  uint64 sequence = 4;
+  uint32 length = 5;
+  string path = 6;
+}
+
+// Define a User message
+message GetBlockIdsRequest {
+
+}
+
+message GetBlockIdsResponse {
+  repeated string ids = 1;
+}
+
+
+message GetBlockInfoRequest {
+  string id = 1;
+}
+
+message GetBlockInfoResponse {
+  BlockInfo blockInfo = 1;
+}
+
+message GetBlockRequest {
+  string id = 1;
+}
+
+message GetBlockResponse {
+  BlockInfo blockInfo = 1;
+  bytes data = 2;
+}
+
+message WriteBlockRequest {
+  BlockInfo blockInfo = 1;
+  bytes data = 2;
+}
+
+message WriteBlockResponse {
+  BlockInfo blockInfo = 1;
+}
+
+message DeleteBlockRequest {
+  string id = 1;
+}
+
+message DeleteBlockResponse {
+  string id = 1;
+}
+
+message CopyBlockRequest {
+  string id = 1;
+  string destinationUrl = 2;
+}
+
+message CopyBlockResponse {
+}
