@@ -1,6 +1,3 @@
-# Variables
-BINARY_NAME=nodeserver
-
 .PHONY: all build clean run deps test
 
 # Default target
