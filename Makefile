@@ -9,7 +9,7 @@ build:
 	go build -o build ./cmd/nodeserver/... ./pkg/... ./vendor/...
 
 docker:
-	docker build -t nodeserver:latest -f docker/namenode.dockerfile .
+	docker build -t nodeserver:latest -f docker/nodeserver.dockerfile .
 
 # Clean up build artifacts
 clean:
