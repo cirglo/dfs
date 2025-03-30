@@ -1,4 +1,4 @@
-.PHONY: all build clean fmt run deps vet lint test
+.PHONY: all build docker clean fmt run deps vet lint test
 
 # Default target
 all: build
@@ -7,6 +7,9 @@ all: build
 build:
 	mkdir -p build
 	go build -o build ./cmd/nodeserver/... ./pkg/... ./vendor/...
+
+docker:
+	docker build -t nodeserver:latest -f docker/namenode.dockerfile .
 
 # Clean up build artifacts
 clean:
