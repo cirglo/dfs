@@ -20,6 +20,12 @@ jobs:
       - name: Install dependencies
         run: make deps
 
+      - name: Lint
+        run: make lint
+
+      - name: Vet
+        run: make vet
+
       - name: Build
         run: make build
 

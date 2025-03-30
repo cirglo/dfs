@@ -1,4 +1,4 @@
-.PHONY: all build clean run deps test
+.PHONY: all build clean fmt run deps vet lint test
 
 # Default target
 all: build
@@ -12,6 +12,9 @@ build:
 clean:
 	rm -f $(BINARY_NAME)
 
+fmt:
+	go fmt ./...
+
 # Run the application
 run: build
 	./$(BINARY_NAME)
@@ -20,6 +23,13 @@ run: build
 deps:
 	go mod tidy
 	go mod vendor
+
+vet:
+	go vet ./...
+
+lint:
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	golangci-lint run
 
 # Test the application
 test:

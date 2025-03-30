@@ -96,7 +96,7 @@ func NewService(opts ServiceOpts) (Service, error) {
 
 	go func() {
 		ticker := time.NewTicker(opts.HealthCheckInterval)
-		for _ = range ticker.C {
+		for range ticker.C {
 			err := s.healthCheck()
 			if err != nil {
 				s.logEntry.WithError(err).Fatal("health check failed")
@@ -106,7 +106,7 @@ func NewService(opts ServiceOpts) (Service, error) {
 
 	go func() {
 		ticker := time.NewTicker(opts.ValidateCRCInterval)
-		for _ = range ticker.C {
+		for range ticker.C {
 			err := s.validateCRC()
 			if err != nil {
 				s.logEntry.WithError(err).Fatal("validate CRC failed")
@@ -123,7 +123,7 @@ func (s *service) GetBlockIds() ([]string, error) {
 
 	ids := make([]string, 0, len(s.blockInfos))
 
-	for id, _ := range s.blockInfos {
+	for id := range s.blockInfos {
 		ids = append(ids, id)
 	}
 
@@ -262,7 +262,7 @@ func (s *service) healthCheck() error {
 
 	if len(toDelete) > 0 {
 		s.logEntry.Warn("deleting bad blocks")
-		for id, _ := range toDelete {
+		for id := range toDelete {
 			logEntry := s.logEntry.WithField("block-id", id)
 			err := s.DeleteBlock(id)
 			if err != nil {
@@ -298,7 +298,7 @@ func (s *service) validateCRC() error {
 
 		logEntry := s.logEntry.WithField("file-path", f.Name())
 
-		fi, err := f.Info()
+		_, err := f.Info()
 		if err != nil {
 			logEntry.WithError(err).Error("cannot read file info")
 			continue
@@ -307,7 +307,7 @@ func (s *service) validateCRC() error {
 		id := strings.TrimSuffix(name, ".data")
 
 		logEntry = logEntry.WithField("block-id", id)
-		_, crc, err := s.readBlockData(fi.Name())
+		_, crc, err := s.readBlockData(id)
 		if err != nil {
 			logEntry.WithError(err).Error("cannot read block data")
 			toDelete[id] = true
@@ -315,14 +315,14 @@ func (s *service) validateCRC() error {
 		}
 		logEntry = logEntry.WithField("crc", crc)
 
-		bifi, err := os.Stat(fmt.Sprintf("%s.md.json"))
+		_, err = os.Stat(s.createMetaDataPath(id))
 		if err != nil {
 			logEntry.WithError(err).Error("cannot stat metadate file")
 			toDelete[id] = true
 			continue
 		}
 
-		blockInfo, err := s.readBlockInfo(bifi.Name())
+		blockInfo, err := s.readBlockInfo(id)
 		if err != nil {
 			logEntry.WithError(err).Error("cannot read block info")
 			toDelete[id] = true
@@ -339,7 +339,7 @@ func (s *service) validateCRC() error {
 	}
 	s.lock.RUnlock()
 
-	for id, _ := range toDelete {
+	for id := range toDelete {
 		err := s.DeleteBlock(id)
 		if err != nil {
 			s.logEntry.WithError(err).WithField("block-id", id).Warn("failed to delete bad block")
