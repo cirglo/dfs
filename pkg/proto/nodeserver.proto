@@ -4,7 +4,7 @@ package nodeserver;
 
 option go_package = "./;proto";
 
-service NodeServer {
+service Node {
   rpc GetBlockIds(GetBlockIdsRequest) returns (GetBlockIdsResponse);
   rpc GetBlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse);
   rpc GetBlock(GetBlockRequest) returns (GetBlockResponse);

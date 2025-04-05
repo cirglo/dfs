@@ -4,7 +4,7 @@ package nameserver;
 
 option go_package = "./;proto";
 
-service NameServer {
+service Name {
   rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
   rpc CreateDir(CreateDirRequest) returns (CreateDirResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);

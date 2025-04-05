@@ -679,9 +679,8 @@ const file_nodeserver_proto_rawDesc = "" +
 	"\x10CopyBlockRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
 	"\x0edestinationUrl\x18\x02 \x01(\tR\x0edestinationUrl\"\x13\n" +
-	"\x11CopyBlockResponse2\xdd\x03\n" +
-	"\n" +
-	"NodeServer\x12N\n" +
+	"\x11CopyBlockResponse2\xd7\x03\n" +
+	"\x04Node\x12N\n" +
 	"\vGetBlockIds\x12\x1e.nodeserver.GetBlockIdsRequest\x1a\x1f.nodeserver.GetBlockIdsResponse\x12Q\n" +
 	"\fGetBlockInfo\x12\x1f.nodeserver.GetBlockInfoRequest\x1a .nodeserver.GetBlockInfoResponse\x12E\n" +
 	"\bGetBlock\x12\x1b.nodeserver.GetBlockRequest\x1a\x1c.nodeserver.GetBlockResponse\x12K\n" +
@@ -724,18 +723,18 @@ var file_nodeserver_proto_depIdxs = []int32{
 	0,  // 1: nodeserver.GetBlockResponse.blockInfo:type_name -> nodeserver.BlockInfo
 	0,  // 2: nodeserver.WriteBlockRequest.blockInfo:type_name -> nodeserver.BlockInfo
 	0,  // 3: nodeserver.WriteBlockResponse.blockInfo:type_name -> nodeserver.BlockInfo
-	1,  // 4: nodeserver.NodeServer.GetBlockIds:input_type -> nodeserver.GetBlockIdsRequest
-	3,  // 5: nodeserver.NodeServer.GetBlockInfo:input_type -> nodeserver.GetBlockInfoRequest
-	5,  // 6: nodeserver.NodeServer.GetBlock:input_type -> nodeserver.GetBlockRequest
-	7,  // 7: nodeserver.NodeServer.WriteBlock:input_type -> nodeserver.WriteBlockRequest
-	9,  // 8: nodeserver.NodeServer.DeleteBlock:input_type -> nodeserver.DeleteBlockRequest
-	11, // 9: nodeserver.NodeServer.CopyBlock:input_type -> nodeserver.CopyBlockRequest
-	2,  // 10: nodeserver.NodeServer.GetBlockIds:output_type -> nodeserver.GetBlockIdsResponse
-	4,  // 11: nodeserver.NodeServer.GetBlockInfo:output_type -> nodeserver.GetBlockInfoResponse
-	6,  // 12: nodeserver.NodeServer.GetBlock:output_type -> nodeserver.GetBlockResponse
-	8,  // 13: nodeserver.NodeServer.WriteBlock:output_type -> nodeserver.WriteBlockResponse
-	10, // 14: nodeserver.NodeServer.DeleteBlock:output_type -> nodeserver.DeleteBlockResponse
-	12, // 15: nodeserver.NodeServer.CopyBlock:output_type -> nodeserver.CopyBlockResponse
+	1,  // 4: nodeserver.Node.GetBlockIds:input_type -> nodeserver.GetBlockIdsRequest
+	3,  // 5: nodeserver.Node.GetBlockInfo:input_type -> nodeserver.GetBlockInfoRequest
+	5,  // 6: nodeserver.Node.GetBlock:input_type -> nodeserver.GetBlockRequest
+	7,  // 7: nodeserver.Node.WriteBlock:input_type -> nodeserver.WriteBlockRequest
+	9,  // 8: nodeserver.Node.DeleteBlock:input_type -> nodeserver.DeleteBlockRequest
+	11, // 9: nodeserver.Node.CopyBlock:input_type -> nodeserver.CopyBlockRequest
+	2,  // 10: nodeserver.Node.GetBlockIds:output_type -> nodeserver.GetBlockIdsResponse
+	4,  // 11: nodeserver.Node.GetBlockInfo:output_type -> nodeserver.GetBlockInfoResponse
+	6,  // 12: nodeserver.Node.GetBlock:output_type -> nodeserver.GetBlockResponse
+	8,  // 13: nodeserver.Node.WriteBlock:output_type -> nodeserver.WriteBlockResponse
+	10, // 14: nodeserver.Node.DeleteBlock:output_type -> nodeserver.DeleteBlockResponse
+	12, // 15: nodeserver.Node.CopyBlock:output_type -> nodeserver.CopyBlockResponse
 	10, // [10:16] is the sub-list for method output_type
 	4,  // [4:10] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name

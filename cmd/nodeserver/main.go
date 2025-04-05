@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"github.com/cirglo.com/dfs/pkg/node"
 	"github.com/sirupsen/logrus"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -21,6 +21,9 @@ func main() {
 	leaseDurationFlag := flag.Duration("lease-duration", 2*time.Minute, "Lease Duration")
 	etcdIntervalFlag := flag.Duration("etcd-interval", 1*time.Minute, "ETCD Interval")
 	etcdTimeoutFlag := flag.Duration("etcd-timeout", 5*time.Second, "ETCD Timeout")
+	etcdEndpointsFlag := flag.String("etcd-endpoints", "localhost:2379", "ETCD Endpoints")
+	etcdUsernameFlag := flag.String("etcd-username", "", "ETCD Username")
+	etcPasswordFlag := flag.String("etcd-password", "", "ETCD Password")
 
 	flag.Parse()
 
@@ -37,6 +40,15 @@ func main() {
 		log.WithError(err).WithField("dir", *dirFlag).Fatal("Directory does not exist")
 	}
 
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints: strings.Split(*etcdEndpointsFlag, ","),
+		Username:  *etcdUsernameFlag,
+		Password:  *etcPasswordFlag,
+	})
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create etcd client")
+	}
+
 	etcdOpts := node.EtcdOpts{
 		ID:            *idFlag,
 		Host:          "localhost:2379",
@@ -44,16 +56,7 @@ func main() {
 		ContextFactory: func() (context.Context, context.CancelFunc) {
 			return context.WithTimeout(context.Background(), *etcdTimeoutFlag)
 		},
-		Client: &clientv3.Client{
-			Cluster:     nil,
-			KV:          nil,
-			Lease:       nil,
-			Watcher:     nil,
-			Auth:        nil,
-			Maintenance: nil,
-			Username:    "",
-			Password:    "",
-		},
+		Client: client,
 	}
 
 	etcd, err := node.NewEtcd(etcdOpts)
@@ -87,5 +90,4 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create service")
 	}
-
 }

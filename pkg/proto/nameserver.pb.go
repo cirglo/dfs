@@ -1441,9 +1441,8 @@ const file_nameserver_proto_rawDesc = "" +
 	"\x06handle\x18\x03 \x01(\tR\x06handle\x12\x1a\n" +
 	"\bsequence\x18\x04 \x01(\x04R\bsequence\x12\x18\n" +
 	"\aprimary\x18\x05 \x01(\tR\aprimary\x12\x16\n" +
-	"\x06others\x18\x06 \x03(\tR\x06others2\xa9\x05\n" +
-	"\n" +
-	"NameServer\x12K\n" +
+	"\x06others\x18\x06 \x03(\tR\x06others2\xa3\x05\n" +
+	"\x04Name\x12K\n" +
 	"\n" +
 	"CreateFile\x12\x1d.nameserver.CreateFileRequest\x1a\x1e.nameserver.CreateFileResponse\x12H\n" +
 	"\tCreateDir\x12\x1c.nameserver.CreateDirRequest\x1a\x1d.nameserver.CreateDirResponse\x12K\n" +
@@ -1504,24 +1503,24 @@ var file_nameserver_proto_depIdxs = []int32{
 	2,  // 6: nameserver.ListDirResponse.entries:type_name -> nameserver.DirEntry
 	2,  // 7: nameserver.StatFileResponse.entry:type_name -> nameserver.DirEntry
 	3,  // 8: nameserver.StatFileResponse.blockInfos:type_name -> nameserver.StatBlockInfo
-	4,  // 9: nameserver.NameServer.CreateFile:input_type -> nameserver.CreateFileRequest
-	6,  // 10: nameserver.NameServer.CreateDir:input_type -> nameserver.CreateDirRequest
-	8,  // 11: nameserver.NameServer.DeleteFile:input_type -> nameserver.DeleteFileRequest
-	10, // 12: nameserver.NameServer.DeleteDir:input_type -> nameserver.DeleteDirRequest
-	12, // 13: nameserver.NameServer.ListDir:input_type -> nameserver.ListDirRequest
-	14, // 14: nameserver.NameServer.StatFile:input_type -> nameserver.StatFileRequest
-	16, // 15: nameserver.NameServer.OpenFile:input_type -> nameserver.OpenFileRequest
-	18, // 16: nameserver.NameServer.CloseFile:input_type -> nameserver.CloseFileRequest
-	20, // 17: nameserver.NameServer.PrepareWrite:input_type -> nameserver.PrepareWriteRequest
-	5,  // 18: nameserver.NameServer.CreateFile:output_type -> nameserver.CreateFileResponse
-	7,  // 19: nameserver.NameServer.CreateDir:output_type -> nameserver.CreateDirResponse
-	9,  // 20: nameserver.NameServer.DeleteFile:output_type -> nameserver.DeleteFileResponse
-	11, // 21: nameserver.NameServer.DeleteDir:output_type -> nameserver.DeleteDirResponse
-	13, // 22: nameserver.NameServer.ListDir:output_type -> nameserver.ListDirResponse
-	15, // 23: nameserver.NameServer.StatFile:output_type -> nameserver.StatFileResponse
-	17, // 24: nameserver.NameServer.OpenFile:output_type -> nameserver.OpenFileResponse
-	19, // 25: nameserver.NameServer.CloseFile:output_type -> nameserver.CloseFileResponse
-	21, // 26: nameserver.NameServer.PrepareWrite:output_type -> nameserver.PrepareWriteResponse
+	4,  // 9: nameserver.Name.CreateFile:input_type -> nameserver.CreateFileRequest
+	6,  // 10: nameserver.Name.CreateDir:input_type -> nameserver.CreateDirRequest
+	8,  // 11: nameserver.Name.DeleteFile:input_type -> nameserver.DeleteFileRequest
+	10, // 12: nameserver.Name.DeleteDir:input_type -> nameserver.DeleteDirRequest
+	12, // 13: nameserver.Name.ListDir:input_type -> nameserver.ListDirRequest
+	14, // 14: nameserver.Name.StatFile:input_type -> nameserver.StatFileRequest
+	16, // 15: nameserver.Name.OpenFile:input_type -> nameserver.OpenFileRequest
+	18, // 16: nameserver.Name.CloseFile:input_type -> nameserver.CloseFileRequest
+	20, // 17: nameserver.Name.PrepareWrite:input_type -> nameserver.PrepareWriteRequest
+	5,  // 18: nameserver.Name.CreateFile:output_type -> nameserver.CreateFileResponse
+	7,  // 19: nameserver.Name.CreateDir:output_type -> nameserver.CreateDirResponse
+	9,  // 20: nameserver.Name.DeleteFile:output_type -> nameserver.DeleteFileResponse
+	11, // 21: nameserver.Name.DeleteDir:output_type -> nameserver.DeleteDirResponse
+	13, // 22: nameserver.Name.ListDir:output_type -> nameserver.ListDirResponse
+	15, // 23: nameserver.Name.StatFile:output_type -> nameserver.StatFileResponse
+	17, // 24: nameserver.Name.OpenFile:output_type -> nameserver.OpenFileResponse
+	19, // 25: nameserver.Name.CloseFile:output_type -> nameserver.CloseFileResponse
+	21, // 26: nameserver.Name.PrepareWrite:output_type -> nameserver.PrepareWriteResponse
 	18, // [18:27] is the sub-list for method output_type
 	9,  // [9:18] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
