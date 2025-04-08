@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package nameserver;
+
+option go_package = "./;proto";
+
+service Name {
+  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
+  rpc CreateDir(CreateDirRequest) returns (CreateDirResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc DeleteDir(DeleteDirRequest) returns (DeleteDirResponse);
+  rpc ListDir(ListDirRequest) returns (ListDirResponse);
+  rpc StatFile(StatFileRequest) returns (StatFileResponse);
+  rpc OpenFile(OpenFileRequest) returns (OpenFileResponse);
+  rpc CloseFile(CloseFileRequest) returns (CloseFileResponse);
+  rpc PrepareWrite(PrepareWriteRequest) returns (PrepareWriteResponse);
+}
+
+message Permission {
+  bool execute = 1;
+  bool read = 2;
+  bool write = 3;
+}
+
+message Permissions {
+  Permission owner = 1;
+  Permission group = 2;
+  Permission other = 3;
+}
+
+
+message DirEntry {
+  string path = 1;
+  string id = 2;
+  bool isDir = 3;
+  Permissions permissions = 4;
+  string user = 5;
+  string group = 6;
+  uint64 createdAt = 7;
+  uint64 modifiedAt = 8;
+  uint64 accessedAr = 9;
+}
+
+message StatBlockInfo {
+  string host = 1;
+  string blockId = 2;
+  uint32 crc = 3;
+  uint64 sequence = 4;
+  uint32 length = 5;
+}
+
+message CreateFileRequest {
+  string path = 1;
+  Permissions permissions = 2;
+  string user = 3;
+  string group = 4;
+}
+
+message CreateFileResponse {
+  string id = 1;
+}
+
+message CreateDirRequest {
+  string path = 1;
+  Permissions permissions = 2;
+  string user = 3;
+  string group = 4;
+}
+
+message CreateDirResponse {
+  string id = 1;
+}
+
+message DeleteFileRequest {
+  string path = 1;
+  string id = 2;
+}
+
+message DeleteFileResponse {
+}
+
+
+message DeleteDirRequest {
+  string path = 1;
+  string id = 2;
+}
+
+message DeleteDirResponse {
+}
+
+message ListDirRequest {
+  string path = 1;
+  string id = 2;
+}
+
+message ListDirResponse {
+  string path = 1;
+  string id = 2;
+  repeated DirEntry entries = 3;
+}
+
+message StatFileRequest {
+  string path = 1;
+  string id = 2;
+}
+
+message StatFileResponse {
+  string path = 1;
+  string id = 2;
+  DirEntry entry = 3;
+  repeated StatBlockInfo blockInfos = 4;
+}
+
+message OpenFileRequest {
+  string path = 1;
+  string id = 2;
+}
+
+message OpenFileResponse {
+  string path = 1;
+  string id = 2;
+  string handle = 3;
+}
+
+message CloseFileRequest {
+  string path = 1;
+  string id = 2;
+  string handle = 3;
+}
+
+message CloseFileResponse {
+  string path = 1;
+  string id = 2;
+}
+
+message PrepareWriteRequest {
+  string path = 1;
+  string id = 2;
+  string handle = 3;
+  uint64 sequence = 4;
+  string location = 5;
+}
+
+
+message PrepareWriteResponse {
+  string path = 1;
+  string id = 2;
+  string handle = 3;
+  uint64 sequence = 4;
+  string primary = 5;
+  repeated string others = 6;
+}
