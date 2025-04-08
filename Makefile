@@ -5,7 +5,6 @@ all: build
 
 # Build the binary
 build:
-	mkdir -p build
 	go build -o build ./cmd/nodeserver/... ./pkg/... ./vendor/...
 
 docker:

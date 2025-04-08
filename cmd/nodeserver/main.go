@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"github.com/cirglo.com/dfs/pkg/node"
+	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/sirupsen/logrus"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -15,7 +19,8 @@ func main() {
 	logLevelFlag := flag.String("log-level", "info", "Log Level")
 	idFlag := flag.String("id", "default-id", "Node ID")
 	locationFlag := flag.String("location", "/", "Node Location")
-	dirFlag := flag.String("dir", "/tmp", "Node Directory")
+	dirFlag := flag.String("dir", "./", "Node Directory")
+	portFlag := flag.Int("port", 50051, "Node Port")
 	healthCheckIntervalFlag := flag.Duration("health-check-interval", 1*time.Minute, "Health Check Interval")
 	crcCheckIntervalFlag := flag.Duration("crc-check-interval", 24*time.Hour, "CRC Check Interval")
 	leaseDurationFlag := flag.Duration("lease-duration", 2*time.Minute, "Lease Duration")
@@ -78,7 +83,7 @@ func main() {
 	}()
 
 	serviceOpts := node.ServiceOpts{
-		Logger:              nil,
+		Logger:              log,
 		ID:                  *idFlag,
 		Location:            *locationFlag,
 		Dir:                 dir,
@@ -86,8 +91,29 @@ func main() {
 		ValidateCRCInterval: *crcCheckIntervalFlag,
 	}
 
-	_, err = node.NewService(serviceOpts)
+	nodeService, err := node.NewService(serviceOpts)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create service")
+	}
+
+	nodeServer, err := node.NewServer(node.ServerOpts{
+		Logger:  log,
+		Service: nodeService,
+	})
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create server")
+	}
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", *portFlag))
+	if err != nil {
+		log.WithError(err).WithField("port", *portFlag).Fatal("Failed to listen")
+	}
+
+	grpcServer := grpc.NewServer()
+	proto.RegisterNodeServer(grpcServer, nodeServer)
+
+	log.WithField("port", *portFlag).Infof("Starting server")
+	if err := grpcServer.Serve(listener); err != nil {
+		log.WithError(err).Fatal("Failed to serve gRPC server")
 	}
 }
