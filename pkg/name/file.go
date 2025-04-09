@@ -3,7 +3,6 @@ package name
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"io/fs"
@@ -21,8 +20,8 @@ type FileService interface {
 	StatFile(p Principal, filePath string) (FileInfo, error)
 	GetChildren(p Principal, filePath string) ([]FileInfo, error)
 	GetParent(p Principal, filePath string) (FileInfo, error)
-	CreateFile(p Principal, filePath string, owner string, group string, perms Permissions) (FileInfo, error)
-	CreateDir(p Principal, filePath string, owner string, group string, perms Permissions) (FileInfo, error)
+	CreateFile(p Principal, filePath string, perms Permissions) (FileInfo, error)
+	CreateDir(p Principal, filePath string, perms Permissions) (FileInfo, error)
 	DeleteFile(p Principal, filePath string) error
 	DeleteDir(p Principal, filePath string) error
 	AddBlockInfo(p Principal, filePath string, blockInfo BlockInfo) error
@@ -69,34 +68,102 @@ func (p Principal) IsRoot() bool {
 }
 
 type Privileges struct {
-	Read    bool
-	Write   bool
-	Execute bool
+	Read  bool
+	Write bool
 }
 
 func (p Privileges) Union(o Privileges) Privileges {
 	return Privileges{
-		Read:    p.Read && o.Read,
-		Write:   p.Write && o.Write,
-		Execute: p.Execute && o.Execute,
+		Read:  p.Read && o.Read,
+		Write: p.Write && o.Write,
 	}
 }
 
 type Permission struct {
-	Execute bool `json:"execute"`
-	Read    bool `json:"read"`
-	Write   bool `json:"write"`
+	Read  bool `json:"read"`
+	Write bool `json:"write"`
 }
 
 type Permissions struct {
-	Owner Permission `json:"owner"`
-	Group Permission `json:"group"`
-	Other Permission `json:"other"`
+	Owner           string     `json:"owner"`
+	Group           string     `json:"group"`
+	OwnerPermission Permission `json:"ownerPermission"`
+	GroupPermission Permission `json:"groupPermission"`
+	OtherPermisson  Permission `json:"otherPermission"`
+}
+
+func (p Permissions) Privileges(principal Principal) Privileges {
+	return Privileges{
+		Read:  p.CanRead(principal),
+		Write: p.CanWrite(principal),
+	}
+}
+
+func (p Permissions) CanRead(principal Principal) bool {
+
+	if principal.IsRoot() {
+		return true
+	}
+
+	if p.OtherPermisson.Read {
+		return true
+	}
+
+	if p.Group == principal.Group {
+		if p.GroupPermission.Read {
+			return true
+		}
+	}
+
+	if p.Owner == principal.User {
+		if p.OwnerPermission.Read {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (p Permissions) CanWrite(principal Principal) bool {
+	if principal.IsRoot() {
+		return true
+	}
+
+	if p.OtherPermisson.Write {
+		return true
+	}
+
+	if p.Group == principal.Group {
+		if p.GroupPermission.Write {
+			return true
+		}
+	}
+
+	if p.Owner == principal.User {
+		if p.OwnerPermission.Write {
+			return true
+		}
+	}
+
+	return false
 }
 
 type FileServiceOpts struct {
 	Logger *logrus.Logger
 	Dir    fs.FileInfo
+}
+
+func (f FileServiceOpts) Validate() error {
+	if f.Logger == nil {
+		return fmt.Errorf("logger is required")
+	}
+	if f.Dir == nil {
+		return fmt.Errorf("dir is required")
+	}
+	if !f.Dir.IsDir() {
+		return fmt.Errorf("dir must be a directory")
+	}
+	return nil
 }
 
 type fileService struct {
@@ -106,18 +173,20 @@ type fileService struct {
 
 var _ FileService = &fileService{}
 
-func NewFileService(opts FileServiceOpts) FileService {
+func NewFileService(opts FileServiceOpts) (FileService, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid file service options: %w", err)
+	}
 	return &fileService{
 		Opts: opts,
-	}
+	}, nil
 }
 
 func (f *fileService) determinePrivileges(p Principal, filePath string) (Privileges, error) {
 	if p.IsRoot() {
 		return Privileges{
-			Read:    true,
-			Write:   true,
-			Execute: true,
+			Read:  true,
+			Write: true,
 		}, nil
 	}
 
@@ -129,56 +198,13 @@ func (f *fileService) determinePrivileges(p Principal, filePath string) (Privile
 		return Privileges{}, fmt.Errorf("failed to read metadata file %s: %w", metaPath, err)
 	}
 
-	canRead := false
-	canWrite := false
-	canExecute := false
+	privs := fi.Permissions.Privileges(p)
 
-	if fi.Permissions.Other.Read {
-		canRead = true
-	}
-
-	if fi.Permissions.Other.Write {
-		canWrite = true
-	}
-
-	if fi.Permissions.Other.Execute {
-		canExecute = true
-	}
-
-	if p.Group == fi.Group {
-		if fi.Permissions.Group.Read {
-			canRead = true
-		}
-		if fi.Permissions.Group.Write {
-			canWrite = true
-		}
-		if fi.Permissions.Group.Execute {
-			canExecute = true
-		}
-	}
-
-	if p.User == fi.Owner {
-		if fi.Permissions.Owner.Read {
-			canRead = true
-		}
-		if fi.Permissions.Owner.Write {
-			canWrite = true
-		}
-		if fi.Permissions.Owner.Execute {
-			canExecute = true
-		}
-	}
-
-	privs := Privileges{
-		Read:    canRead,
-		Write:   canWrite,
-		Execute: canExecute,
-	}
-
-	if filePath != "/" {
-		parentPrivs, err := f.determinePrivileges(rootPrincipal(), filepath.Dir(realPath))
+	if filePath != "/" && (privs.Read || privs.Write) {
+		parentPath := filepath.Dir(realPath)
+		parentPrivs, err := f.determinePrivileges(rootPrincipal(), parentPath)
 		if err != nil {
-			return Privileges{}, fmt.Errorf("failed to get parent priveleges %s: %w", parent.Path, err)
+			return Privileges{}, fmt.Errorf("failed to get parent priveleges %s: %w", parentPath, err)
 		}
 
 		privs = privs.Union(parentPrivs)
@@ -187,7 +213,7 @@ func (f *fileService) determinePrivileges(p Principal, filePath string) (Privile
 	return privs, nil
 }
 
-func (f fileService) readMetadataFile(path string) (FileInfo, error) {
+func (f *fileService) readMetadataFile(path string) (FileInfo, error) {
 	fi := FileInfo{}
 
 	b, err := os.ReadFile(path)
@@ -203,7 +229,7 @@ func (f fileService) readMetadataFile(path string) (FileInfo, error) {
 	return fi, nil
 }
 
-func (f fileService) writeMetadataFile(path string, fi FileInfo) error {
+func (f *fileService) writeMetadataFile(path string, fi FileInfo) error {
 	b, err := json.Marshal(fi)
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata file %s: %w", path, err)
@@ -217,7 +243,7 @@ func (f fileService) writeMetadataFile(path string, fi FileInfo) error {
 	return nil
 }
 
-func (f fileService) StatFile(p Principal, filePath string) (FileInfo, error) {
+func (f *fileService) StatFile(p Principal, filePath string) (FileInfo, error) {
 	f.Lock.RLock()
 	defer f.Lock.RUnlock()
 	privs, err := f.determinePrivileges(p, filePath)
@@ -240,7 +266,7 @@ func (f fileService) StatFile(p Principal, filePath string) (FileInfo, error) {
 	return fi, nil
 }
 
-func (f fileService) GetChildren(p Principal, filePath string) ([]FileInfo, error) {
+func (f *fileService) GetChildren(p Principal, filePath string) ([]FileInfo, error) {
 	f.Lock.RLock()
 	defer f.Lock.RUnlock()
 	privs, err := f.determinePrivileges(p, filePath)
@@ -271,12 +297,12 @@ func (f fileService) GetChildren(p Principal, filePath string) ([]FileInfo, erro
 	return children, nil
 }
 
-func (f fileService) GetParent(p Principal, path string) (FileInfo, error) {
+func (f *fileService) GetParent(p Principal, path string) (FileInfo, error) {
 	f.Lock.RLock()
 	defer f.Lock.RUnlock()
 	privs, err := f.determinePrivileges(p, filepath.Dir(path))
 	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", filePath, err)
+		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", path, err)
 	}
 	if !privs.Read {
 		return FileInfo{}, fmt.Errorf("permission denied for %s", path)
@@ -293,12 +319,12 @@ func (f fileService) GetParent(p Principal, path string) (FileInfo, error) {
 	return fi, nil
 }
 
-func (f fileService) CreateFile(p Principal, path string, owner string, group string, perms Permissions) (FileInfo, error) {
+func (f *fileService) CreateFile(p Principal, path string, perms Permissions) (FileInfo, error) {
 	f.Lock.Lock()
 	defer f.Lock.Unlock()
 	privs, err := f.determinePrivileges(p, filepath.Dir(path))
 	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", filePath, err)
+		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", path, err)
 	}
 	if !privs.Write {
 		return FileInfo{}, fmt.Errorf("permission denied for %s", path)
@@ -316,8 +342,6 @@ func (f fileService) CreateFile(p Principal, path string, owner string, group st
 		IsDir:       false,
 		ID:          uuid.New().String(),
 		Size:        0,
-		Owner:       owner,
-		Group:       group,
 		Permissions: perms,
 		BlockInfos:  []BlockInfo{},
 	}
@@ -330,12 +354,12 @@ func (f fileService) CreateFile(p Principal, path string, owner string, group st
 	return fi, nil
 }
 
-func (f fileService) CreateDir(p Principal, path string, owner string, group string, perms Permissions) (FileInfo, error) {
+func (f *fileService) CreateDir(p Principal, path string, perms Permissions) (FileInfo, error) {
 	f.Lock.Lock()
 	defer f.Lock.Unlock()
 	privs, err := f.determinePrivileges(p, filepath.Dir(path))
 	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", filePath, err)
+		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", path, err)
 	}
 	if !privs.Write {
 		return FileInfo{}, fmt.Errorf("permission denied for %s", path)
@@ -353,8 +377,6 @@ func (f fileService) CreateDir(p Principal, path string, owner string, group str
 		IsDir:       true,
 		ID:          uuid.New().String(),
 		Size:        0,
-		Owner:       owner,
-		Group:       group,
 		Permissions: perms,
 		BlockInfos:  []BlockInfo{},
 	}
@@ -367,7 +389,7 @@ func (f fileService) CreateDir(p Principal, path string, owner string, group str
 	return fi, nil
 }
 
-func (f fileService) DeleteFile(p Principal, filePath string) error {
+func (f *fileService) DeleteFile(p Principal, filePath string) error {
 	f.Lock.Lock()
 	defer f.Lock.Unlock()
 	privs, err := f.determinePrivileges(p, filePath)
@@ -401,7 +423,7 @@ func (f fileService) DeleteFile(p Principal, filePath string) error {
 	return nil
 }
 
-func (f fileService) DeleteDir(p Principal, filePath string) error {
+func (f *fileService) DeleteDir(p Principal, filePath string) error {
 	f.Lock.Lock()
 	defer f.Lock.Unlock()
 	privs, err := f.determinePrivileges(p, filePath)
@@ -444,7 +466,7 @@ func (f fileService) DeleteDir(p Principal, filePath string) error {
 	return nil
 }
 
-func (f fileService) AddBlockInfo(p Principal, filePath string, blockInfo BlockInfo) error {
+func (f *fileService) AddBlockInfo(p Principal, filePath string, blockInfo BlockInfo) error {
 	f.Lock.Lock()
 	defer f.Lock.Unlock()
 	privs, err := f.determinePrivileges(p, filePath)
@@ -470,7 +492,7 @@ func (f fileService) AddBlockInfo(p Principal, filePath string, blockInfo BlockI
 	return nil
 }
 
-func (f fileService) RemoveBlockInfo(p Principal, filePath string, blockInfo BlockInfo) error {
+func (f *fileService) RemoveBlockInfo(p Principal, filePath string, blockInfo BlockInfo) error {
 	f.Lock.Lock()
 	defer f.Lock.Unlock()
 	privs, err := f.determinePrivileges(p, filePath)
