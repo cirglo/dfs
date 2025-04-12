@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package nameserver;
+
+option go_package = "./;proto";
+
+service NameInternal {
+  rpc ReportExistingBlocks(BlockInfoReport) returns (BlockInfoReportResponse);
+  rpc NotifyBlocksAdded(BlockInfoReport) returns (BlockInfoReportResponse);
+  rpc NotifyBlocksRemoved(BlockInfoReport) returns (BlockInfoReportResponse);
+}
+
+
+message BlockInfoReport {
+  string host = 1;
+  repeated BlockInfoItem blockInfos = 3;
+}
+
+message BlockInfoItem {
+  string blockId = 1;
+  string path = 2;
+  uint32 crc = 3;
+  uint64 sequence = 4;
+  uint32 length = 5;
+}
+
+message BlockInfoReportResponse {
+}

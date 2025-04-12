@@ -23,7 +23,7 @@ const (
 
 type BlockInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockId       uint64                 `protobuf:"varint,1,opt,name=blockId,proto3" json:"blockId,omitempty"`
+	BlockId       string                 `protobuf:"bytes,1,opt,name=blockId,proto3" json:"blockId,omitempty"`
 	Crc           uint32                 `protobuf:"varint,2,opt,name=crc,proto3" json:"crc,omitempty"`
 	Sequence      uint64                 `protobuf:"varint,3,opt,name=sequence,proto3" json:"sequence,omitempty"`
 	Length        uint32                 `protobuf:"varint,4,opt,name=length,proto3" json:"length,omitempty"`
@@ -62,11 +62,11 @@ func (*BlockInfo) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *BlockInfo) GetBlockId() uint64 {
+func (x *BlockInfo) GetBlockId() string {
 	if x != nil {
 		return x.BlockId
 	}
-	return 0
+	return ""
 }
 
 func (x *BlockInfo) GetCrc() uint32 {
@@ -180,7 +180,7 @@ func (x *GetBlockInfosResponse) GetBlockInfos() []*BlockInfo {
 
 type GetBlockInfoRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -215,11 +215,11 @@ func (*GetBlockInfoRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetBlockInfoRequest) GetId() uint64 {
+func (x *GetBlockInfoRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 type GetBlockInfoResponse struct {
@@ -268,7 +268,7 @@ func (x *GetBlockInfoResponse) GetBlockInfo() *BlockInfo {
 
 type GetBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -303,11 +303,11 @@ func (*GetBlockRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *GetBlockRequest) GetId() uint64 {
+func (x *GetBlockRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 type GetBlockResponse struct {
@@ -460,7 +460,7 @@ func (x *WriteBlockResponse) GetBlockInfo() *BlockInfo {
 
 type DeleteBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -495,16 +495,15 @@ func (*DeleteBlockRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *DeleteBlockRequest) GetId() uint64 {
+func (x *DeleteBlockRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 type DeleteBlockResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -539,19 +538,12 @@ func (*DeleteBlockResponse) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *DeleteBlockResponse) GetId() uint64 {
-	if x != nil {
-		return x.Id
-	}
-	return 0
-}
-
 type CopyBlockRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	DestinationUrl string                 `protobuf:"bytes,2,opt,name=destinationUrl,proto3" json:"destinationUrl,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Destination   string                 `protobuf:"bytes,2,opt,name=destination,proto3" json:"destination,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CopyBlockRequest) Reset() {
@@ -584,16 +576,16 @@ func (*CopyBlockRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *CopyBlockRequest) GetId() uint64 {
+func (x *CopyBlockRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
-func (x *CopyBlockRequest) GetDestinationUrl() string {
+func (x *CopyBlockRequest) GetDestination() string {
 	if x != nil {
-		return x.DestinationUrl
+		return x.Destination
 	}
 	return ""
 }
@@ -641,7 +633,7 @@ const file_nodeserver_proto_rawDesc = "" +
 	"\x10nodeserver.proto\x12\n" +
 	"nodeserver\"\x7f\n" +
 	"\tBlockInfo\x12\x18\n" +
-	"\ablockId\x18\x01 \x01(\x04R\ablockId\x12\x10\n" +
+	"\ablockId\x18\x01 \x01(\tR\ablockId\x12\x10\n" +
 	"\x03crc\x18\x02 \x01(\rR\x03crc\x12\x1a\n" +
 	"\bsequence\x18\x03 \x01(\x04R\bsequence\x12\x16\n" +
 	"\x06length\x18\x04 \x01(\rR\x06length\x12\x12\n" +
@@ -652,11 +644,11 @@ const file_nodeserver_proto_rawDesc = "" +
 	"blockInfos\x18\x01 \x03(\v2\x15.nodeserver.BlockInfoR\n" +
 	"blockInfos\"%\n" +
 	"\x13GetBlockInfoRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x04R\x02id\"K\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"K\n" +
 	"\x14GetBlockInfoResponse\x123\n" +
 	"\tblockInfo\x18\x01 \x01(\v2\x15.nodeserver.BlockInfoR\tblockInfo\"!\n" +
 	"\x0fGetBlockRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x04R\x02id\"[\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"[\n" +
 	"\x10GetBlockResponse\x123\n" +
 	"\tblockInfo\x18\x01 \x01(\v2\x15.nodeserver.BlockInfoR\tblockInfo\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\"\\\n" +
@@ -666,12 +658,11 @@ const file_nodeserver_proto_rawDesc = "" +
 	"\x12WriteBlockResponse\x123\n" +
 	"\tblockInfo\x18\x01 \x01(\v2\x15.nodeserver.BlockInfoR\tblockInfo\"$\n" +
 	"\x12DeleteBlockRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x04R\x02id\"%\n" +
-	"\x13DeleteBlockResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x04R\x02id\"J\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x15\n" +
+	"\x13DeleteBlockResponse\"D\n" +
 	"\x10CopyBlockRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x04R\x02id\x12&\n" +
-	"\x0edestinationUrl\x18\x02 \x01(\tR\x0edestinationUrl\"\x13\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
+	"\vdestination\x18\x02 \x01(\tR\vdestination\"\x13\n" +
 	"\x11CopyBlockResponse2\xdd\x03\n" +
 	"\x04Node\x12T\n" +
 	"\rGetBlockInfos\x12 .nodeserver.GetBlockInfosRequest\x1a!.nodeserver.GetBlockInfosResponse\x12Q\n" +

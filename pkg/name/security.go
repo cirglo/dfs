@@ -55,7 +55,7 @@ type SecurityService interface {
 	AuthenticateUser(userName string, password string) (string, error)
 	ChangeUserPassword(userName string, newPassword string) error
 	Logout(token string) error
-	IsTokenValid(token string, userName string) bool
+	LookupUserByToken(token string) (User, error)
 }
 
 type SecurityServiceOpts struct {
@@ -411,6 +411,31 @@ func (s *securityService) Logout(token string) error {
 	}
 
 	return nil
+}
+
+func (s *securityService) LookupUserByToken(token string) (User, error) {
+	user := User{}
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if token exists
+		tokenEntity := Token{}
+		tx.Where("value = ?", token).First(&tokenEntity)
+		if tx.Error != nil {
+			return fmt.Errorf("could not get token: %w", tx.Error)
+		}
+
+		if tokenEntity.IsExpired() {
+			return fmt.Errorf("token is expired")
+		}
+
+		user = tokenEntity.User
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return User{}, fmt.Errorf("transaction failed: %w", err)
+	}
+
+	return user, nil
 }
 
 func (s *securityService) IsTokenValid(token string, userName string) bool {

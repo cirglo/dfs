@@ -2,7 +2,6 @@ package name
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -14,13 +13,14 @@ import (
 )
 
 type FileService interface {
+	StatFile(p Principal, filePath string) (FileInfo, error)
 	ListFiles(p Principal, path string) ([]FileInfo, error)
 	ListDirs(p Principal, path string) ([]DirInfo, error)
 	CreateFile(p Principal, path string, perms Permissions) (FileInfo, error)
 	CreateDir(p Principal, path string, perms Permissions) (FileInfo, error)
 	DeleteFile(p Principal, path string) error
 	DeleteDir(p Principal, path string) error
-	UpdateBlockInfos(p Principal, path string, blockInfos []BlockInfo) error
+	UpsertBlockInfos(p Principal, path string, blockInfos []BlockInfo) error
 	GetBlockInfos(p Principal, path string) ([]BlockInfo, error)
 }
 
@@ -39,32 +39,22 @@ type FileInfo struct {
 	ID          uint64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	Name        string       `gorm:"uniqueIndex:idx_fileinfo_name;not null;not empty;"`
-	Dir         *DirInfo     `gorm:"many2many:dir_childfiles;uniqueIndex:idx_fileinfo_name;not null;"`
-	Size        uint64       `gorm:"not null;"`
-	Permissions Permissions  `gorm:"embedded;not null;"`
-	BlockInfos  []*BlockInfo `gorm:"many2many:file_blockinfos;not null;"`
-	Healthy     bool         `gorm:"not null;"`
+	Name        string      `gorm:"uniqueIndex:idx_fileinfo_name;not null;not empty;"`
+	Dir         *DirInfo    `gorm:"many2many:dir_childfiles;uniqueIndex:idx_fileinfo_name;not null;"`
+	Size        uint64      `gorm:"not null;"`
+	Permissions Permissions `gorm:"embedded;not null;"`
+	BlockInfos  []BlockInfo
+	Healthy     bool `gorm:"not null;"`
 }
 
 type BlockInfo struct {
-	ID        uint64
+	ID        string
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	FileInfo  *FileInfo   `gorm:"many2many:file_blockinfos;uniqueIndex:idx_fileinfo_sequence;not null;"`
-	Locations []*Location `gorm:"many2many:blockinfo_locations;not null"`
-	Sequence  uint64      `gorm:"uniqueIndex:idx_fileinfo_sequence;not null"`
-	Length    uint32      `gorm:"not null;"`
-}
-
-type Location struct {
-	ID        uint64
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	BlockInfo *BlockInfo `gorm:"many2many:blockinfo_locations;uniqueIndex:idx_locations_unique;not null;"`
-	Hostname  string     `gorm:"uniqueIndex:idx_locations_unique;not null;not empty;"`
-	Port      uint16     `gorm:"uniqueIndex:idx_locations_unique;not null;not empty;"`
-	Value     string     `gorm:"not null;not empty;"`
+	Locations []string
+	Sequence  uint64 `gorm:"uniqueIndex:idx_fileinfo_sequence;not null"`
+	Length    uint32 `gorm:"not null;"`
+	CRC       uint32 `gorm:"not null;"`
 }
 
 type Principal interface {
@@ -72,28 +62,49 @@ type Principal interface {
 }
 
 type principal struct {
-	user  string
-	group string
+	user   string
+	groups []string
 }
 
 func (p *principal) User() string {
 	return p.user
 }
 
-func (p *principal) Group() string {
-	return p.group
+func (p *principal) Groups() []string {
+	return p.groups
 }
 
-func NewPrincipal(user, group string) Principal {
+func NewPrincipal(user User) Principal {
+	var groups []string
+
+	for _, group := range user.Groups {
+		groups = append(groups, group.Name)
+	}
+
 	return &principal{
-		user:  user,
-		group: group,
+		user:   user.Name,
+		groups: groups,
 	}
 }
 
 func (p principal) ComputePrivileges(permissions Permissions) Privileges {
 	canRead := false
 	canWrite := false
+
+	if permissions.OtherPermisson.Read {
+		canRead = true
+	}
+
+	if permissions.OtherPermisson.Write {
+		canWrite = true
+	}
+
+	if canRead && canWrite {
+		return Privileges{
+			Read:  true,
+			Write: true,
+		}
+	}
 
 	if permissions.Owner == p.user {
 		if permissions.OwnerPermission.Read {
@@ -105,22 +116,30 @@ func (p principal) ComputePrivileges(permissions Permissions) Privileges {
 		}
 	}
 
-	if permissions.Group == p.group {
-		if permissions.GroupPermission.Read {
-			canRead = true
-		}
-
-		if permissions.GroupPermission.Write {
-			canWrite = true
+	if canRead && canWrite {
+		return Privileges{
+			Read:  true,
+			Write: true,
 		}
 	}
 
-	if permissions.OtherPermisson.Read {
-		canRead = true
-	}
+	for _, group := range p.groups {
+		if permissions.Group == group {
+			if permissions.GroupPermission.Read {
+				canRead = true
+			}
 
-	if permissions.OtherPermisson.Write {
-		canWrite = true
+			if permissions.GroupPermission.Write {
+				canWrite = true
+			}
+
+			if canRead && canWrite {
+				return Privileges{
+					Read:  true,
+					Write: true,
+				}
+			}
+		}
 	}
 
 	return Privileges{
@@ -372,7 +391,7 @@ func (f *fileService) CreateFile(p Principal, path string, perms Permissions) (F
 			Dir:         &parentDir,
 			Size:        0,
 			Permissions: perms,
-			BlockInfos:  []*BlockInfo{},
+			BlockInfos:  []BlockInfo{},
 			Healthy:     true,
 		}
 
@@ -513,65 +532,8 @@ func (f *fileService) DeleteDir(p Principal, path string) error {
 	return nil
 }
 
-func (f *fileService) UpdateBlockInfos(p Principal, path string, blockInfos []BlockInfo) error {
-	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
-		_, fileInfo, privs, err := f.lookupFile(tx, p, path)
-		if err != nil {
-			return fmt.Errorf("failed to lookup file %s: %w", path, err)
-		}
-
-		if !privs.Write {
-			return fmt.Errorf("permission denied for %s", path)
-		}
-
-		for _, blockInfo := range blockInfos {
-			// Check if the block info already exists
-			existingBlockInfo := BlockInfo{
-				ID: blockInfo.ID,
-			}
-			res := tx.Find(&existingBlockInfo)
-			if res.Error != nil {
-				if !errors.Is(res.Error, gorm.ErrRecordNotFound) {
-					return fmt.Errorf("failed to find block info: %w", res.Error)
-				}
-
-				res = tx.Create(&blockInfo)
-				if res.Error != nil {
-					return fmt.Errorf("failed to create block info: %w", res.Error)
-				}
-				err = tx.Model(&fileInfo).Association("BlockInfos").Append(&blockInfo)
-				if err != nil {
-					return fmt.Errorf("failed to add block info to file: %w", err)
-				}
-
-				continue
-			}
-
-			existingBlockInfo.Sequence = blockInfo.Sequence
-			existingBlockInfo.Length = blockInfo.Length
-			err = tx.Model(existingBlockInfo).Association("BlockInfos").Replace(blockInfo.Locations)
-			if err != nil {
-				return fmt.Errorf("failed to update block info: %w", err)
-			}
-		}
-
-		err = f.validateBlockInfos(tx, &fileInfo)
-		if err != nil {
-			return fmt.Errorf("failed to validate block infos: %w", err)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to update block infos for file %s: %w", path, err)
-	}
-
-	return nil
-}
-
 func (f *fileService) validateBlockInfos(tx *gorm.DB, fileInfo *FileInfo) error {
-	blockInfos := append([]*BlockInfo{}, fileInfo.BlockInfos...)
+	blockInfos := append([]BlockInfo{}, fileInfo.BlockInfos...)
 	sequenceMap := map[uint64]*BlockInfo{}
 
 	sort.Slice(blockInfos, func(i, j int) bool {
@@ -582,13 +544,7 @@ func (f *fileService) validateBlockInfos(tx *gorm.DB, fileInfo *FileInfo) error 
 		if _, ok := sequenceMap[blockInfo.Sequence]; ok {
 			return fmt.Errorf("duplicate block info sequence %d", blockInfo.Sequence)
 		}
-		sequenceMap[blockInfo.Sequence] = blockInfo
-
-		for _, location := range blockInfo.Locations {
-			if location.Hostname == "" || location.Port == 0 || location.Value == "" {
-				return fmt.Errorf("invalid location for block info locations: %s", blockInfo)
-			}
-		}
+		sequenceMap[blockInfo.Sequence] = &blockInfo
 	}
 
 	totalLength := uint64(0)
@@ -637,4 +593,102 @@ func (f *fileService) GetBlockInfos(p Principal, path string) ([]BlockInfo, erro
 	})
 
 	return blockInfos, nil
+}
+
+func (f *fileService) UpsertBlockInfos(p Principal, path string, blockInfos []BlockInfo) error {
+	incomingIndex := map[string]BlockInfo{}
+	for _, blockInfo := range blockInfos {
+		incomingIndex[blockInfo.ID] = blockInfo
+	}
+
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		_, fileInfo, privs, err := f.lookupFile(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup file %s: %w", path, err)
+		}
+
+		if !privs.Write {
+			return fmt.Errorf("permission denied for %s", path)
+		}
+
+		for _, blockInfo := range fileInfo.BlockInfos {
+			incoming, ok := incomingIndex[blockInfo.ID]
+			if ok {
+				locationsToAdd := []string{}
+				for _, location := range incoming.Locations {
+					if !slices.Contains(blockInfo.Locations, location) {
+						locationsToAdd = append(locationsToAdd, location)
+					}
+				}
+
+				err := tx.Model(&blockInfo).Association("Locations").Append(locationsToAdd)
+				if err != nil {
+					return fmt.Errorf("failed to append block info locations: %w", err)
+				}
+			}
+
+			delete(incomingIndex, blockInfo.ID)
+		}
+
+		for _, blockInfo := range incomingIndex {
+			err := tx.Model(&fileInfo).Association("BlockInfos").Append(blockInfo)
+			if err != nil {
+				return fmt.Errorf("failed to append block info: %w", err)
+			}
+		}
+
+		err = f.validateBlockInfos(tx, &fileInfo)
+		if err != nil {
+			return fmt.Errorf("failed to validate block info: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upsert block info for file %s: %w", path, err)
+	}
+
+	return nil
+}
+
+func (f *fileService) RemoveBlockInfos(p Principal, path string, blockInfos []BlockInfo) error {
+	incomingIndex := map[string]BlockInfo{}
+	for _, blockInfo := range blockInfos {
+		incomingIndex[blockInfo.ID] = blockInfo
+	}
+
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		_, fileInfo, privs, err := f.lookupFile(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup file %s: %w", path, err)
+		}
+
+		if !privs.Write {
+			return fmt.Errorf("permission denied for %s", path)
+		}
+
+		for _, blockInfo := range fileInfo.BlockInfos {
+			incoming, ok := incomingIndex[blockInfo.ID]
+			if ok {
+				err := tx.Model(&blockInfo).Association("Locations").Delete(incoming.Locations)
+				if err != nil {
+					return fmt.Errorf("failed to append block info locations: %w", err)
+				}
+			}
+
+			delete(incomingIndex, blockInfo.ID)
+		}
+
+		err = f.validateBlockInfos(tx, &fileInfo)
+		if err != nil {
+			return fmt.Errorf("failed to validate block info: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upsert block info for file %s: %w", path, err)
+	}
+
+	return nil
 }

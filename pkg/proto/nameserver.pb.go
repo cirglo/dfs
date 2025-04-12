@@ -154,9 +154,9 @@ type DirEntry struct {
 	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	IsDir         bool                   `protobuf:"varint,2,opt,name=isDir,proto3" json:"isDir,omitempty"`
 	Permissions   *Permissions           `protobuf:"bytes,3,opt,name=permissions,proto3" json:"permissions,omitempty"`
-	CreatedAt     uint64                 `protobuf:"varint,4,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
-	ModifiedAt    uint64                 `protobuf:"varint,5,opt,name=modifiedAt,proto3" json:"modifiedAt,omitempty"`
-	AccessedAr    uint64                 `protobuf:"varint,6,opt,name=accessedAr,proto3" json:"accessedAr,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,4,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
+	ModifiedAt    int64                  `protobuf:"varint,5,opt,name=modifiedAt,proto3" json:"modifiedAt,omitempty"`
+	AccessedAt    int64                  `protobuf:"varint,6,opt,name=accessedAt,proto3" json:"accessedAt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -212,23 +212,23 @@ func (x *DirEntry) GetPermissions() *Permissions {
 	return nil
 }
 
-func (x *DirEntry) GetCreatedAt() uint64 {
+func (x *DirEntry) GetCreatedAt() int64 {
 	if x != nil {
 		return x.CreatedAt
 	}
 	return 0
 }
 
-func (x *DirEntry) GetModifiedAt() uint64 {
+func (x *DirEntry) GetModifiedAt() int64 {
 	if x != nil {
 		return x.ModifiedAt
 	}
 	return 0
 }
 
-func (x *DirEntry) GetAccessedAr() uint64 {
+func (x *DirEntry) GetAccessedAt() int64 {
 	if x != nil {
-		return x.AccessedAr
+		return x.AccessedAt
 	}
 	return 0
 }
@@ -236,10 +236,11 @@ func (x *DirEntry) GetAccessedAr() uint64 {
 type StatBlockInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
-	BlockId       string                 `protobuf:"bytes,2,opt,name=blockId,proto3" json:"blockId,omitempty"`
-	Crc           uint32                 `protobuf:"varint,3,opt,name=crc,proto3" json:"crc,omitempty"`
-	Sequence      uint64                 `protobuf:"varint,4,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	Length        uint32                 `protobuf:"varint,5,opt,name=length,proto3" json:"length,omitempty"`
+	Port          uint32                 `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	BlockId       string                 `protobuf:"bytes,3,opt,name=blockId,proto3" json:"blockId,omitempty"`
+	Crc           uint32                 `protobuf:"varint,5,opt,name=crc,proto3" json:"crc,omitempty"`
+	Sequence      uint64                 `protobuf:"varint,6,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Length        uint32                 `protobuf:"varint,7,opt,name=length,proto3" json:"length,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,6 +282,13 @@ func (x *StatBlockInfo) GetHost() string {
 	return ""
 }
 
+func (x *StatBlockInfo) GetPort() uint32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
 func (x *StatBlockInfo) GetBlockId() string {
 	if x != nil {
 		return x.BlockId
@@ -313,7 +321,6 @@ type LoginRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	User           string                 `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	HashedPassword string                 `protobuf:"bytes,2,opt,name=hashedPassword,proto3" json:"hashedPassword,omitempty"`
-	HashType       string                 `protobuf:"bytes,3,opt,name=hashType,proto3" json:"hashType,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -358,13 +365,6 @@ func (x *LoginRequest) GetUser() string {
 func (x *LoginRequest) GetHashedPassword() string {
 	if x != nil {
 		return x.HashedPassword
-	}
-	return ""
-}
-
-func (x *LoginRequest) GetHashType() string {
-	if x != nil {
-		return x.HashType
 	}
 	return ""
 }
@@ -1085,334 +1085,6 @@ func (x *StatFileResponse) GetBlockInfos() []*StatBlockInfo {
 	return nil
 }
 
-type OpenFileRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *OpenFileRequest) Reset() {
-	*x = OpenFileRequest{}
-	mi := &file_nameserver_proto_msgTypes[20]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *OpenFileRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpenFileRequest) ProtoMessage() {}
-
-func (x *OpenFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nameserver_proto_msgTypes[20]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpenFileRequest.ProtoReflect.Descriptor instead.
-func (*OpenFileRequest) Descriptor() ([]byte, []int) {
-	return file_nameserver_proto_rawDescGZIP(), []int{20}
-}
-
-func (x *OpenFileRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-func (x *OpenFileRequest) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-type OpenFileResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	Handle        string                 `protobuf:"bytes,2,opt,name=handle,proto3" json:"handle,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *OpenFileResponse) Reset() {
-	*x = OpenFileResponse{}
-	mi := &file_nameserver_proto_msgTypes[21]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *OpenFileResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpenFileResponse) ProtoMessage() {}
-
-func (x *OpenFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nameserver_proto_msgTypes[21]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpenFileResponse.ProtoReflect.Descriptor instead.
-func (*OpenFileResponse) Descriptor() ([]byte, []int) {
-	return file_nameserver_proto_rawDescGZIP(), []int{21}
-}
-
-func (x *OpenFileResponse) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *OpenFileResponse) GetHandle() string {
-	if x != nil {
-		return x.Handle
-	}
-	return ""
-}
-
-type CloseFileRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Handle        string                 `protobuf:"bytes,3,opt,name=handle,proto3" json:"handle,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CloseFileRequest) Reset() {
-	*x = CloseFileRequest{}
-	mi := &file_nameserver_proto_msgTypes[22]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CloseFileRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CloseFileRequest) ProtoMessage() {}
-
-func (x *CloseFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nameserver_proto_msgTypes[22]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CloseFileRequest.ProtoReflect.Descriptor instead.
-func (*CloseFileRequest) Descriptor() ([]byte, []int) {
-	return file_nameserver_proto_rawDescGZIP(), []int{22}
-}
-
-func (x *CloseFileRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-func (x *CloseFileRequest) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *CloseFileRequest) GetHandle() string {
-	if x != nil {
-		return x.Handle
-	}
-	return ""
-}
-
-type CloseFileResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CloseFileResponse) Reset() {
-	*x = CloseFileResponse{}
-	mi := &file_nameserver_proto_msgTypes[23]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CloseFileResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CloseFileResponse) ProtoMessage() {}
-
-func (x *CloseFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nameserver_proto_msgTypes[23]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CloseFileResponse.ProtoReflect.Descriptor instead.
-func (*CloseFileResponse) Descriptor() ([]byte, []int) {
-	return file_nameserver_proto_rawDescGZIP(), []int{23}
-}
-
-type PrepareWriteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Handle        string                 `protobuf:"bytes,3,opt,name=handle,proto3" json:"handle,omitempty"`
-	Sequence      uint64                 `protobuf:"varint,4,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	Location      string                 `protobuf:"bytes,5,opt,name=location,proto3" json:"location,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PrepareWriteRequest) Reset() {
-	*x = PrepareWriteRequest{}
-	mi := &file_nameserver_proto_msgTypes[24]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PrepareWriteRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PrepareWriteRequest) ProtoMessage() {}
-
-func (x *PrepareWriteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nameserver_proto_msgTypes[24]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PrepareWriteRequest.ProtoReflect.Descriptor instead.
-func (*PrepareWriteRequest) Descriptor() ([]byte, []int) {
-	return file_nameserver_proto_rawDescGZIP(), []int{24}
-}
-
-func (x *PrepareWriteRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-func (x *PrepareWriteRequest) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *PrepareWriteRequest) GetHandle() string {
-	if x != nil {
-		return x.Handle
-	}
-	return ""
-}
-
-func (x *PrepareWriteRequest) GetSequence() uint64 {
-	if x != nil {
-		return x.Sequence
-	}
-	return 0
-}
-
-func (x *PrepareWriteRequest) GetLocation() string {
-	if x != nil {
-		return x.Location
-	}
-	return ""
-}
-
-type PrepareWriteResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Primary       string                 `protobuf:"bytes,5,opt,name=primary,proto3" json:"primary,omitempty"`
-	Others        []string               `protobuf:"bytes,6,rep,name=others,proto3" json:"others,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PrepareWriteResponse) Reset() {
-	*x = PrepareWriteResponse{}
-	mi := &file_nameserver_proto_msgTypes[25]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PrepareWriteResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PrepareWriteResponse) ProtoMessage() {}
-
-func (x *PrepareWriteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nameserver_proto_msgTypes[25]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PrepareWriteResponse.ProtoReflect.Descriptor instead.
-func (*PrepareWriteResponse) Descriptor() ([]byte, []int) {
-	return file_nameserver_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *PrepareWriteResponse) GetPrimary() string {
-	if x != nil {
-		return x.Primary
-	}
-	return ""
-}
-
-func (x *PrepareWriteResponse) GetOthers() []string {
-	if x != nil {
-		return x.Others
-	}
-	return nil
-}
-
 var File_nameserver_proto protoreflect.FileDescriptor
 
 const file_nameserver_proto_rawDesc = "" +
@@ -1433,23 +1105,23 @@ const file_nameserver_proto_rawDesc = "" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
 	"\x05isDir\x18\x02 \x01(\bR\x05isDir\x129\n" +
 	"\vpermissions\x18\x03 \x01(\v2\x17.nameserver.PermissionsR\vpermissions\x12\x1c\n" +
-	"\tcreatedAt\x18\x04 \x01(\x04R\tcreatedAt\x12\x1e\n" +
+	"\tcreatedAt\x18\x04 \x01(\x03R\tcreatedAt\x12\x1e\n" +
 	"\n" +
-	"modifiedAt\x18\x05 \x01(\x04R\n" +
+	"modifiedAt\x18\x05 \x01(\x03R\n" +
 	"modifiedAt\x12\x1e\n" +
 	"\n" +
-	"accessedAr\x18\x06 \x01(\x04R\n" +
-	"accessedAr\"\x83\x01\n" +
+	"accessedAt\x18\x06 \x01(\x03R\n" +
+	"accessedAt\"\x97\x01\n" +
 	"\rStatBlockInfo\x12\x12\n" +
-	"\x04host\x18\x01 \x01(\tR\x04host\x12\x18\n" +
-	"\ablockId\x18\x02 \x01(\tR\ablockId\x12\x10\n" +
-	"\x03crc\x18\x03 \x01(\rR\x03crc\x12\x1a\n" +
-	"\bsequence\x18\x04 \x01(\x04R\bsequence\x12\x16\n" +
-	"\x06length\x18\x05 \x01(\rR\x06length\"f\n" +
+	"\x04host\x18\x01 \x01(\tR\x04host\x12\x12\n" +
+	"\x04port\x18\x02 \x01(\rR\x04port\x12\x18\n" +
+	"\ablockId\x18\x03 \x01(\tR\ablockId\x12\x10\n" +
+	"\x03crc\x18\x05 \x01(\rR\x03crc\x12\x1a\n" +
+	"\bsequence\x18\x06 \x01(\x04R\bsequence\x12\x16\n" +
+	"\x06length\x18\a \x01(\rR\x06length\"J\n" +
 	"\fLoginRequest\x12\x12\n" +
 	"\x04user\x18\x01 \x01(\tR\x04user\x12&\n" +
-	"\x0ehashedPassword\x18\x02 \x01(\tR\x0ehashedPassword\x12\x1a\n" +
-	"\bhashType\x18\x03 \x01(\tR\bhashType\"9\n" +
+	"\x0ehashedPassword\x18\x02 \x01(\tR\x0ehashedPassword\"9\n" +
 	"\rLoginResponse\x12\x12\n" +
 	"\x04user\x18\x01 \x01(\tR\x04user\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\"%\n" +
@@ -1488,27 +1160,7 @@ const file_nameserver_proto_rawDesc = "" +
 	"\x05entry\x18\x02 \x01(\v2\x14.nameserver.DirEntryR\x05entry\x129\n" +
 	"\n" +
 	"blockInfos\x18\x03 \x03(\v2\x19.nameserver.StatBlockInfoR\n" +
-	"blockInfos\";\n" +
-	"\x0fOpenFileRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\">\n" +
-	"\x10OpenFileResponse\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
-	"\x06handle\x18\x02 \x01(\tR\x06handle\"T\n" +
-	"\x10CloseFileRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
-	"\x06handle\x18\x03 \x01(\tR\x06handle\"\x13\n" +
-	"\x11CloseFileResponse\"\x8f\x01\n" +
-	"\x13PrepareWriteRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
-	"\x06handle\x18\x03 \x01(\tR\x06handle\x12\x1a\n" +
-	"\bsequence\x18\x04 \x01(\x04R\bsequence\x12\x1a\n" +
-	"\blocation\x18\x05 \x01(\tR\blocation\"H\n" +
-	"\x14PrepareWriteResponse\x12\x18\n" +
-	"\aprimary\x18\x05 \x01(\tR\aprimary\x12\x16\n" +
-	"\x06others\x18\x06 \x03(\tR\x06others2\xa2\x06\n" +
+	"blockInfos2\xbe\x04\n" +
 	"\x04Name\x12<\n" +
 	"\x05Login\x12\x18.nameserver.LoginRequest\x1a\x19.nameserver.LoginResponse\x12?\n" +
 	"\x06Logout\x12\x19.nameserver.LogoutRequest\x1a\x1a.nameserver.LogoutResponse\x12K\n" +
@@ -1519,10 +1171,7 @@ const file_nameserver_proto_rawDesc = "" +
 	"DeleteFile\x12\x1d.nameserver.DeleteFileRequest\x1a\x1e.nameserver.DeleteFileResponse\x12H\n" +
 	"\tDeleteDir\x12\x1c.nameserver.DeleteDirRequest\x1a\x1d.nameserver.DeleteDirResponse\x12B\n" +
 	"\aListDir\x12\x1a.nameserver.ListDirRequest\x1a\x1b.nameserver.ListDirResponse\x12E\n" +
-	"\bStatFile\x12\x1b.nameserver.StatFileRequest\x1a\x1c.nameserver.StatFileResponse\x12E\n" +
-	"\bOpenFile\x12\x1b.nameserver.OpenFileRequest\x1a\x1c.nameserver.OpenFileResponse\x12H\n" +
-	"\tCloseFile\x12\x1c.nameserver.CloseFileRequest\x1a\x1d.nameserver.CloseFileResponse\x12Q\n" +
-	"\fPrepareWrite\x12\x1f.nameserver.PrepareWriteRequest\x1a .nameserver.PrepareWriteResponseB\n" +
+	"\bStatFile\x12\x1b.nameserver.StatFileRequest\x1a\x1c.nameserver.StatFileResponseB\n" +
 	"Z\b./;protob\x06proto3"
 
 var (
@@ -1537,34 +1186,28 @@ func file_nameserver_proto_rawDescGZIP() []byte {
 	return file_nameserver_proto_rawDescData
 }
 
-var file_nameserver_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_nameserver_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_nameserver_proto_goTypes = []any{
-	(*Permission)(nil),           // 0: nameserver.Permission
-	(*Permissions)(nil),          // 1: nameserver.Permissions
-	(*DirEntry)(nil),             // 2: nameserver.DirEntry
-	(*StatBlockInfo)(nil),        // 3: nameserver.StatBlockInfo
-	(*LoginRequest)(nil),         // 4: nameserver.LoginRequest
-	(*LoginResponse)(nil),        // 5: nameserver.LoginResponse
-	(*LogoutRequest)(nil),        // 6: nameserver.LogoutRequest
-	(*LogoutResponse)(nil),       // 7: nameserver.LogoutResponse
-	(*CreateFileRequest)(nil),    // 8: nameserver.CreateFileRequest
-	(*CreateFileResponse)(nil),   // 9: nameserver.CreateFileResponse
-	(*CreateDirRequest)(nil),     // 10: nameserver.CreateDirRequest
-	(*CreateDirResponse)(nil),    // 11: nameserver.CreateDirResponse
-	(*DeleteFileRequest)(nil),    // 12: nameserver.DeleteFileRequest
-	(*DeleteFileResponse)(nil),   // 13: nameserver.DeleteFileResponse
-	(*DeleteDirRequest)(nil),     // 14: nameserver.DeleteDirRequest
-	(*DeleteDirResponse)(nil),    // 15: nameserver.DeleteDirResponse
-	(*ListDirRequest)(nil),       // 16: nameserver.ListDirRequest
-	(*ListDirResponse)(nil),      // 17: nameserver.ListDirResponse
-	(*StatFileRequest)(nil),      // 18: nameserver.StatFileRequest
-	(*StatFileResponse)(nil),     // 19: nameserver.StatFileResponse
-	(*OpenFileRequest)(nil),      // 20: nameserver.OpenFileRequest
-	(*OpenFileResponse)(nil),     // 21: nameserver.OpenFileResponse
-	(*CloseFileRequest)(nil),     // 22: nameserver.CloseFileRequest
-	(*CloseFileResponse)(nil),    // 23: nameserver.CloseFileResponse
-	(*PrepareWriteRequest)(nil),  // 24: nameserver.PrepareWriteRequest
-	(*PrepareWriteResponse)(nil), // 25: nameserver.PrepareWriteResponse
+	(*Permission)(nil),         // 0: nameserver.Permission
+	(*Permissions)(nil),        // 1: nameserver.Permissions
+	(*DirEntry)(nil),           // 2: nameserver.DirEntry
+	(*StatBlockInfo)(nil),      // 3: nameserver.StatBlockInfo
+	(*LoginRequest)(nil),       // 4: nameserver.LoginRequest
+	(*LoginResponse)(nil),      // 5: nameserver.LoginResponse
+	(*LogoutRequest)(nil),      // 6: nameserver.LogoutRequest
+	(*LogoutResponse)(nil),     // 7: nameserver.LogoutResponse
+	(*CreateFileRequest)(nil),  // 8: nameserver.CreateFileRequest
+	(*CreateFileResponse)(nil), // 9: nameserver.CreateFileResponse
+	(*CreateDirRequest)(nil),   // 10: nameserver.CreateDirRequest
+	(*CreateDirResponse)(nil),  // 11: nameserver.CreateDirResponse
+	(*DeleteFileRequest)(nil),  // 12: nameserver.DeleteFileRequest
+	(*DeleteFileResponse)(nil), // 13: nameserver.DeleteFileResponse
+	(*DeleteDirRequest)(nil),   // 14: nameserver.DeleteDirRequest
+	(*DeleteDirResponse)(nil),  // 15: nameserver.DeleteDirResponse
+	(*ListDirRequest)(nil),     // 16: nameserver.ListDirRequest
+	(*ListDirResponse)(nil),    // 17: nameserver.ListDirResponse
+	(*StatFileRequest)(nil),    // 18: nameserver.StatFileRequest
+	(*StatFileResponse)(nil),   // 19: nameserver.StatFileResponse
 }
 var file_nameserver_proto_depIdxs = []int32{
 	0,  // 0: nameserver.Permissions.ownerPermission:type_name -> nameserver.Permission
@@ -1584,22 +1227,16 @@ var file_nameserver_proto_depIdxs = []int32{
 	14, // 14: nameserver.Name.DeleteDir:input_type -> nameserver.DeleteDirRequest
 	16, // 15: nameserver.Name.ListDir:input_type -> nameserver.ListDirRequest
 	18, // 16: nameserver.Name.StatFile:input_type -> nameserver.StatFileRequest
-	20, // 17: nameserver.Name.OpenFile:input_type -> nameserver.OpenFileRequest
-	22, // 18: nameserver.Name.CloseFile:input_type -> nameserver.CloseFileRequest
-	24, // 19: nameserver.Name.PrepareWrite:input_type -> nameserver.PrepareWriteRequest
-	5,  // 20: nameserver.Name.Login:output_type -> nameserver.LoginResponse
-	7,  // 21: nameserver.Name.Logout:output_type -> nameserver.LogoutResponse
-	9,  // 22: nameserver.Name.CreateFile:output_type -> nameserver.CreateFileResponse
-	11, // 23: nameserver.Name.CreateDir:output_type -> nameserver.CreateDirResponse
-	13, // 24: nameserver.Name.DeleteFile:output_type -> nameserver.DeleteFileResponse
-	15, // 25: nameserver.Name.DeleteDir:output_type -> nameserver.DeleteDirResponse
-	17, // 26: nameserver.Name.ListDir:output_type -> nameserver.ListDirResponse
-	19, // 27: nameserver.Name.StatFile:output_type -> nameserver.StatFileResponse
-	21, // 28: nameserver.Name.OpenFile:output_type -> nameserver.OpenFileResponse
-	23, // 29: nameserver.Name.CloseFile:output_type -> nameserver.CloseFileResponse
-	25, // 30: nameserver.Name.PrepareWrite:output_type -> nameserver.PrepareWriteResponse
-	20, // [20:31] is the sub-list for method output_type
-	9,  // [9:20] is the sub-list for method input_type
+	5,  // 17: nameserver.Name.Login:output_type -> nameserver.LoginResponse
+	7,  // 18: nameserver.Name.Logout:output_type -> nameserver.LogoutResponse
+	9,  // 19: nameserver.Name.CreateFile:output_type -> nameserver.CreateFileResponse
+	11, // 20: nameserver.Name.CreateDir:output_type -> nameserver.CreateDirResponse
+	13, // 21: nameserver.Name.DeleteFile:output_type -> nameserver.DeleteFileResponse
+	15, // 22: nameserver.Name.DeleteDir:output_type -> nameserver.DeleteDirResponse
+	17, // 23: nameserver.Name.ListDir:output_type -> nameserver.ListDirResponse
+	19, // 24: nameserver.Name.StatFile:output_type -> nameserver.StatFileResponse
+	17, // [17:25] is the sub-list for method output_type
+	9,  // [9:17] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -1616,7 +1253,7 @@ func file_nameserver_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nameserver_proto_rawDesc), len(file_nameserver_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

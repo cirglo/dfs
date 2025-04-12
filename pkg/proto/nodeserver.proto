@@ -15,7 +15,7 @@ service Node {
 
 
 message BlockInfo {
-  uint64 blockId = 1;
+  string blockId = 1;
   uint32 crc = 2;
   uint64 sequence = 3;
   uint32 length = 4;
@@ -33,7 +33,7 @@ message GetBlockInfosResponse {
 
 
 message GetBlockInfoRequest {
-  uint64 id = 1;
+  string id = 1;
 }
 
 message GetBlockInfoResponse {
@@ -41,7 +41,7 @@ message GetBlockInfoResponse {
 }
 
 message GetBlockRequest {
-  uint64 id = 1;
+  string id = 1;
 }
 
 message GetBlockResponse {
@@ -59,16 +59,15 @@ message WriteBlockResponse {
 }
 
 message DeleteBlockRequest {
-  uint64 id = 1;
+  string id = 1;
 }
 
 message DeleteBlockResponse {
-  uint64 id = 1;
 }
 
 message CopyBlockRequest {
-  uint64 id = 1;
-  string destinationUrl = 2;
+  string id = 1;
+  string destination = 2;
 }
 
 message CopyBlockResponse {

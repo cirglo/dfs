@@ -2,80 +2,227 @@ package name
 
 import (
 	"context"
+	"fmt"
 	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/sirupsen/logrus"
 )
 
 type ServerOpts struct {
-	Logger      *logrus.Logger
-	FileService FileService
+	Logger          *logrus.Logger
+	SecurityService SecurityService
+	FileService     FileService
 }
 
 type Server struct {
+	Opts ServerOpts
 }
 
-func (s Server) Login(ctx context.Context, request *proto.LoginRequest) (*proto.LoginResponse, error) {
+func (s *Server) Login(ctx context.Context, request *proto.LoginRequest) (*proto.LoginResponse, error) {
+	token, err := s.Opts.SecurityService.AuthenticateUser(request.GetUser(), request.GetHashedPassword())
+	if err != nil {
+		return nil, fmt.Errorf("login failed: %w", err)
+	}
+
+	return &proto.LoginResponse{
+		Token: token,
+	}, nil
+}
+
+func (s *Server) Logout(ctx context.Context, request *proto.LogoutRequest) (*proto.LogoutResponse, error) {
+	err := s.Opts.SecurityService.Logout(request.GetToken())
+	if err != nil {
+		return nil, fmt.Errorf("logout failed: %w", err)
+	}
+
+	return &proto.LogoutResponse{}, nil
+}
+
+func convertProtoPermission(permission *proto.Permission) Permission {
+	return Permission{
+		Read:  permission.GetRead(),
+		Write: permission.GetWrite(),
+	}
+}
+
+func convertProtoPermissions(permissions *proto.Permissions) Permissions {
+	return Permissions{
+		Owner:           permissions.GetOwner(),
+		Group:           permissions.GetGroup(),
+		OwnerPermission: convertProtoPermission(permissions.GetOwnerPermission()),
+		GroupPermission: convertProtoPermission(permissions.GetGroupPermission()),
+		OtherPermisson:  convertProtoPermission(permissions.GetOtherPermission()),
+	}
+}
+
+func convertToProtoPermission(permission Permission) *proto.Permission {
+	return &proto.Permission{
+		Read:  permission.Read,
+		Write: permission.Write,
+	}
+}
+
+func convertToProtoPermissions(permissions Permissions) *proto.Permissions {
+	return &proto.Permissions{
+		Owner:           permissions.Owner,
+		Group:           permissions.Group,
+		OwnerPermission: convertToProtoPermission(permissions.OwnerPermission),
+		GroupPermission: convertToProtoPermission(permissions.GroupPermission),
+		OtherPermission: convertToProtoPermission(permissions.OtherPermisson),
+	}
+}
+
+func (s *Server) CreateFile(ctx context.Context, request *proto.CreateFileRequest) (*proto.CreateFileResponse, error) {
+	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user: %w", err)
+	}
+	principal := NewPrincipal(user)
+	permissions := convertProtoPermissions(request.GetPermissions())
+	_, err = s.Opts.FileService.CreateFile(principal, request.GetPath(), permissions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file: %w", err)
+	}
+	return &proto.CreateFileResponse{}, nil
+}
+
+func (s *Server) CreateDir(ctx context.Context, request *proto.CreateDirRequest) (*proto.CreateDirResponse, error) {
+	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user: %w", err)
+	}
+	principal := NewPrincipal(user)
+	permissions := convertProtoPermissions(request.GetPermissions())
+	_, err = s.Opts.FileService.CreateDir(principal, request.GetPath(), permissions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dir: %w", err)
+	}
+	return &proto.CreateDirResponse{}, nil
+}
+
+func (s *Server) DeleteFile(ctx context.Context, request *proto.DeleteFileRequest) (*proto.DeleteFileResponse, error) {
+	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user: %w", err)
+	}
+	principal := NewPrincipal(user)
+	err = s.Opts.FileService.DeleteFile(principal, request.GetPath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete file: %w", err)
+	}
+	return &proto.DeleteFileResponse{}, nil
+}
+
+func (s *Server) DeleteDir(ctx context.Context, request *proto.DeleteDirRequest) (*proto.DeleteDirResponse, error) {
+	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user: %w", err)
+	}
+	principal := NewPrincipal(user)
+	err = s.Opts.FileService.DeleteDir(principal, request.GetPath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete dir: %w", err)
+	}
+	return &proto.DeleteDirResponse{}, nil
+}
+
+func convertToProtoDirEntry(dirInfo DirInfo, parentDir string) *proto.DirEntry {
+	path := fmt.Sprintf("%s/%s", parentDir, dirInfo.Name)
+
+	return &proto.DirEntry{
+		Path:        path,
+		IsDir:       true,
+		Permissions: convertToProtoPermissions(dirInfo.Permissions),
+		CreatedAt:   dirInfo.CreatedAt.Unix(),
+		ModifiedAt:  dirInfo.UpdatedAt.Unix(),
+		AccessedAt:  dirInfo.UpdatedAt.Unix(),
+	}
+}
+
+func convertToProtoDirEntryFile(fileInfo FileInfo, parentDir string) *proto.DirEntry {
+	path := fmt.Sprintf("%s/%s", parentDir, fileInfo.Name)
+	return &proto.DirEntry{
+		Path:        path,
+		IsDir:       false,
+		Permissions: convertToProtoPermissions(fileInfo.Permissions),
+		CreatedAt:   fileInfo.CreatedAt.Unix(),
+		ModifiedAt:  fileInfo.UpdatedAt.Unix(),
+		AccessedAt:  fileInfo.UpdatedAt.Unix(),
+	}
+}
+
+func (s *Server) ListDir(ctx context.Context, request *proto.ListDirRequest) (*proto.ListDirResponse, error) {
+	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user: %w", err)
+	}
+	principal := NewPrincipal(user)
+	dirInfos, err := s.Opts.FileService.ListDirs(principal, request.GetPath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list dirs: %w", err)
+	}
+
+	fileInfos, err := s.Opts.FileService.ListFiles(principal, request.GetPath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list files: %w", err)
+	}
+
+	entries := []*proto.DirEntry{}
+
+	for _, dirInfo := range dirInfos {
+		entries = append(entries, convertToProtoDirEntry(dirInfo, request.GetPath()))
+	}
+
+	for _, fileInfo := range fileInfos {
+		entries = append(entries, convertToProtoDirEntryFile(fileInfo, request.GetPath()))
+	}
+
+	return &proto.ListDirResponse{
+		Path:    request.GetPath(),
+		Entries: entries,
+	}, nil
+}
+
+func convertToProtoStatBlockInfo(blockInfo BlockInfo) *proto.StatBlockInfo {
+	return &proto.StatBlockInfo{
+		BlockId:  blockInfo.ID,
+		Crc:      blockInfo.CRC,
+		Sequence: blockInfo.Sequence,
+		Length:   blockInfo.Length,
+	}
+}
+
+func (s *Server) StatFile(ctx context.Context, request *proto.StatFileRequest) (*proto.StatFileResponse, error) {
+	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user: %w", err)
+	}
+	principal := NewPrincipal(user)
+	fileInfo, err := s.Opts.FileService.StatFile(principal, request.GetPath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	blockInfos, err := s.Opts.FileService.GetBlockInfos(principal, request.GetPath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block infos: %w", err)
+	}
+
+	protoBlockInfos := []*proto.StatBlockInfo{}
+
+	for _, blockInfo := range blockInfos {
+		protoBlockInfos = append(protoBlockInfos, convertToProtoStatBlockInfo(blockInfo))
+	}
+
+	return &proto.StatFileResponse{
+		Path:       request.GetPath(),
+		Entry:      convertToProtoDirEntryFile(fileInfo, request.GetPath()),
+		BlockInfos: protoBlockInfos,
+	}, nil
+}
+
+func (s *Server) mustEmbedUnimplementedNameServer() {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s Server) Logout(ctx context.Context, request *proto.LogoutRequest) (*proto.LogoutResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) CreateFile(ctx context.Context, request *proto.CreateFileRequest) (*proto.CreateFileResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) CreateDir(ctx context.Context, request *proto.CreateDirRequest) (*proto.CreateDirResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) DeleteFile(ctx context.Context, request *proto.DeleteFileRequest) (*proto.DeleteFileResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) DeleteDir(ctx context.Context, request *proto.DeleteDirRequest) (*proto.DeleteDirResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) ListDir(ctx context.Context, request *proto.ListDirRequest) (*proto.ListDirResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) StatFile(ctx context.Context, request *proto.StatFileRequest) (*proto.StatFileResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) OpenFile(ctx context.Context, request *proto.OpenFileRequest) (*proto.OpenFileResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) CloseFile(ctx context.Context, request *proto.CloseFileRequest) (*proto.CloseFileResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) PrepareWrite(ctx context.Context, request *proto.PrepareWriteRequest) (*proto.PrepareWriteResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Server) mustEmbedUnimplementedNameServer() {
-	//TODO implement me
-	panic("implement me")
-}
-
-var _ proto.NameServer = Server{}
-
-func NewServer(opts ServerOpts) *Server {
-	return &Server{}
-}
+var _ proto.NameServer = &Server{}
