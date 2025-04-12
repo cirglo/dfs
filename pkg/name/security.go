@@ -2,30 +2,43 @@ package name
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"os"
-	"slices"
-	"sync"
-	"sync/atomic"
+	"time"
+
+	"gorm.io/gorm"
 )
 
-type Data struct {
-	Users  []User  `json:"users"`
-	Groups []Group `json:"groups"`
-}
-
 type User struct {
-	Name           string `json:"name"`
-	HashedPassword string `json:"hashed_password"`
-	HashType       string `json:"hash_type"`
+	ID             uint
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Name           string   `gorm:"uniqueIndex"`
+	HashedPassword string   `gorm:"not null"`
+	Groups         []*Group `gorm:"many2many:user_groups;"`
 }
 
 type Group struct {
-	Name  string   `json:"name"`
-	Users []string `json:"users"`
+	ID        uint
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Name      string  `gorm:"uniqueIndex"`
+	Users     []*User `gorm:"many2many:user_groups;"`
+}
+
+type Token struct {
+	ID        uint
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	ExpiresAt time.Time
+	Value     string `gorm:"not null"`
+	User      User   `gorm:"not null"`
+}
+
+func (t *Token) IsExpired() bool {
+	return t.ExpiresAt.Before(time.Now())
 }
 
 type SecurityService interface {
@@ -33,39 +46,40 @@ type SecurityService interface {
 	DeleteUser(userName string) error
 	GetUser(userName string) (User, error)
 	GetAllUsers() ([]User, error)
-	GetUserGroups(userName string) ([]Group, error)
 	GetGroup(groupName string) (Group, error)
 	GetAllGroups() ([]Group, error)
 	CreateGroup(group Group) error
 	DeleteGroup(groupName string) error
 	AddUserToGroup(userName string, groupName string) error
 	RemoveUserFromGroup(userName string, groupName string) error
-	AuthenticateUser(userName string, hashType string, password string) (string, error)
-	ChangeUserPassword(userName string, hashType string, newPassword string) error
+	AuthenticateUser(userName string, password string) (string, error)
+	ChangeUserPassword(userName string, newPassword string) error
 	Logout(token string) error
 	IsTokenValid(token string, userName string) bool
 }
 
 type SecurityServiceOpts struct {
-	Logger   *logrus.Logger
-	FilePath string
+	Logger           *logrus.Logger
+	DB               *gorm.DB
+	TokenExperiation time.Duration
 }
 
 func (o *SecurityServiceOpts) Validate() error {
 	if o.Logger == nil {
 		return fmt.Errorf("logger is required")
 	}
-	if o.FilePath == "" {
-		return fmt.Errorf("file path is required")
+	if o.DB == nil {
+		return fmt.Errorf("db is required")
 	}
+	if o.TokenExperiation == 0 {
+		return fmt.Errorf("token expiration is required")
+	}
+
 	return nil
 }
 
 type securityService struct {
-	Opts   SecurityServiceOpts
-	Data   atomic.Value
-	Lock   sync.RWMutex
-	Tokens map[string]string
+	Opts SecurityServiceOpts
 }
 
 func NewSecurityService(opts SecurityServiceOpts) (SecurityService, error) {
@@ -73,302 +87,358 @@ func NewSecurityService(opts SecurityServiceOpts) (SecurityService, error) {
 		return nil, fmt.Errorf("options are invalid: %w", err)
 	}
 	s := &securityService{
-		Opts:   opts,
-		Data:   atomic.Value{},
-		Lock:   sync.RWMutex{},
-		Tokens: map[string]string{},
+		Opts: opts,
 	}
-	s.read()
 	return s, nil
 }
 
-func (s *securityService) read() error {
-	b, err := os.ReadFile(s.Opts.FilePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			s.Opts.Logger.Info("file does not exist, creating new data")
-			s.Data.Store(Data{})
-			return nil
-		}
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-
-	data := Data{}
-	err = json.Unmarshal(b, &data)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal data: %w", err)
-	}
-
-	s.Opts.Logger.Info("data loaded successfully")
-	s.Data.Store(data)
-	return nil
-}
-
-func (s *securityService) write() error {
-	data := s.Data.Load().(Data)
-	b, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to marshal data: %w", err)
-	}
-
-	err = os.WriteFile(s.Opts.FilePath, b, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	s.Opts.Logger.Info("data written successfully")
-	return nil
-}
-
-func (s *securityService) currentData() Data {
-	return s.Data.Load().(Data)
-}
-
 func (s *securityService) CreateUser(user User) error {
-	s.Lock.Lock()
-	defer s.Lock.Unlock()
-	data := s.currentData()
-
-	for _, u := range data.Users {
-		if u.Name == user.Name {
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if user already exists
+		existingUser := User{}
+		tx.Where("name = ?", user.Name).First(&existingUser)
+		if tx.Error != nil && tx.RowsAffected > 0 {
 			return fmt.Errorf("user %s already exists", user.Name)
 		}
-	}
-	data.Users = append(data.Users, user)
-	err := s.write()
+
+		// Create user
+		tx.Create(&user)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to create user: %w", tx.Error)
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return fmt.Errorf("failed to write data: %w", err)
+		return fmt.Errorf("transaction failed: %w", err)
 	}
+
 	return nil
 }
 
 func (s *securityService) DeleteUser(userName string) error {
-	s.Lock.Lock()
-	defer s.Lock.Unlock()
-	data := s.currentData()
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if user exists
+		user := User{}
+		tx.Where("name = ?", userName).First(&user)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("user %s not found", userName)
+		}
 
-	slices.DeleteFunc(data.Users, func(u User) bool {
-		return u.Name == userName
+		// Delete user
+		tx.Delete(&user)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to delete user: %w", tx.Error)
+		}
+
+		return nil
 	})
 
-	err := s.write()
 	if err != nil {
-		return fmt.Errorf("failed to write data: %w", err)
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
 	return nil
 }
 
 func (s *securityService) GetUser(userName string) (User, error) {
-	s.Lock.RLock()
-	defer s.Lock.RUnlock()
-	data := s.currentData()
-
-	for _, u := range data.Users {
-		if u.Name == userName {
-			return u, nil
+	user := User{}
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if user exists
+		tx.Where("name = ?", userName).First(&user)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("user %s not found", userName)
 		}
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return User{}, fmt.Errorf("transaction failed: %w", err)
 	}
-	return User{}, fmt.Errorf("user %s not found", userName)
+
+	return user, nil
 }
 
 func (s *securityService) GetAllUsers() ([]User, error) {
-	s.Lock.RLock()
-	defer s.Lock.RUnlock()
-	u := s.currentData().Users
-	c := make([]User, len(u))
-	copy(c, u)
-
-	return c, nil
-}
-
-func (s *securityService) GetUserGroups(userName string) ([]Group, error) {
-	s.Lock.RLock()
-	defer s.Lock.RUnlock()
-	data := s.currentData()
-
-	var groups []Group
-	for _, g := range data.Groups {
-		if slices.Contains(g.Users, userName) {
-			groups = append(groups, g)
+	users := []User{}
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Get all users
+		tx.Find(&users)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to get users: %w", tx.Error)
 		}
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("transaction failed: %w", err)
 	}
-	return groups, nil
+
+	return users, nil
 }
 
 func (s *securityService) GetGroup(groupName string) (Group, error) {
-	s.Lock.RLock()
-	defer s.Lock.RUnlock()
-	data := s.currentData()
-
-	for _, g := range data.Groups {
-		if g.Name == groupName {
-			return g, nil
+	group := Group{}
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if group exists
+		tx.Where("name = ?", groupName).First(&group)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("group %s not found", groupName)
 		}
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return Group{}, fmt.Errorf("transaction failed: %w", err)
 	}
 
-	return Group{}, fmt.Errorf("group %s not found", groupName)
+	return group, nil
 }
 
 func (s *securityService) GetAllGroups() ([]Group, error) {
-	s.Lock.RLock()
-	defer s.Lock.RUnlock()
-	g := s.currentData().Groups
-	c := make([]Group, len(g))
-	copy(c, g)
+	groups := []Group{}
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Get all groups
+		tx.Find(&groups)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to get groups: %w", tx.Error)
+		}
 
-	return c, nil
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("transaction failed: %w", err)
+	}
+
+	return groups, nil
 }
 
 func (s *securityService) CreateGroup(group Group) error {
-	s.Lock.Lock()
-	defer s.Lock.Unlock()
-	data := s.currentData()
-
-	for _, g := range data.Groups {
-		if g.Name == group.Name {
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if group already exists
+		existingGroup := Group{}
+		tx.Where("name = ?", group.Name).First(&existingGroup)
+		if tx.Error != nil && tx.RowsAffected > 0 {
 			return fmt.Errorf("group %s already exists", group.Name)
 		}
-	}
-	data.Groups = append(data.Groups, group)
-	err := s.write()
+
+		// Create group
+		tx.Create(&group)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to create group: %w", tx.Error)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to write data: %w", err)
+		return fmt.Errorf("transaction failed: %w", err)
 	}
+
 	return nil
 }
 
 func (s *securityService) DeleteGroup(groupName string) error {
-	s.Lock.Lock()
-	defer s.Lock.Unlock()
-	data := s.currentData()
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if group exists
+		group := Group{}
+		tx.Where("name = ?", groupName).First(&group)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("group %s not found", groupName)
+		}
 
-	slices.DeleteFunc(data.Groups, func(g Group) bool {
-		return g.Name == groupName
+		// Delete group
+		tx.Delete(&group)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to delete group: %w", tx.Error)
+		}
+
+		return nil
 	})
-
-	err := s.write()
 	if err != nil {
-		return fmt.Errorf("failed to write data: %w", err)
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
 	return nil
 }
 
 func (s *securityService) AddUserToGroup(userName string, groupName string) error {
-	s.Lock.Lock()
-	defer s.Lock.Unlock()
-	data := s.currentData()
-
-	for i, g := range data.Groups {
-		if g.Name == groupName {
-			if slices.Contains(g.Users, userName) {
-				return fmt.Errorf("user %s already in group %s", userName, groupName)
-			}
-			data.Groups[i].Users = append(data.Groups[i].Users, userName)
-			break
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if group exists
+		group := Group{}
+		tx.Where("name = ?", groupName).First(&group)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("group %s not found", groupName)
 		}
-	}
 
-	err := s.write()
+		// Check if user exists
+		user := User{}
+		tx.Where("name = ?", userName).First(&user)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("user %s not found", userName)
+		}
+
+		tx.Model(&group).Association("Users").Append(&user)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to add user to group: %w", tx.Error)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to write data: %w", err)
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
 	return nil
 }
 
 func (s *securityService) RemoveUserFromGroup(userName string, groupName string) error {
-	s.Lock.Lock()
-	defer s.Lock.Unlock()
-	data := s.currentData()
-
-	for i, g := range data.Groups {
-		if g.Name == groupName {
-			if !slices.Contains(g.Users, userName) {
-				return fmt.Errorf("user %s not in group %s", userName, groupName)
-			}
-			slices.DeleteFunc(data.Groups[i].Users, func(u string) bool {
-				return u == userName
-			})
-			break
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if group exists
+		group := Group{}
+		tx.Where("name = ?", groupName).First(&group)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("group %s not found", groupName)
 		}
-	}
 
-	err := s.write()
+		// Check if user exists
+		user := User{}
+		tx.Where("name = ?", userName).First(&user)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("user %s not found", userName)
+		}
+
+		tx.Model(&group).Association("Users").Delete(&user)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to remove user from group: %w", tx.Error)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to write data: %w", err)
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
 	return nil
 }
 
-func (s *securityService) AuthenticateUser(userName string, hashType string, password string) (string, error) {
-	s.Lock.RLock()
-	defer s.Lock.RUnlock()
-	data := s.currentData()
-
-	for _, u := range data.Users {
-		if u.Name == userName {
-			if u.HashedPassword != password {
-				return "", fmt.Errorf("invalid password for user %s", userName)
-			}
-
-			token := make([]byte, 128)
-			_, err := rand.Read(token)
-			if err != nil {
-				return "", fmt.Errorf("could not create token: %w", err)
-			}
-
-			tokenString := base64.StdEncoding.EncodeToString(token)
-
-			s.Tokens[tokenString] = userName
-
-			return tokenString, nil
+func (s *securityService) AuthenticateUser(userName string, password string) (string, error) {
+	var t string
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		user := User{}
+		tx.Where("name = ?", userName).First(&user)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("user %s not found", userName)
 		}
+
+		if user.HashedPassword != password {
+			return fmt.Errorf("invalid password for user %s", userName)
+		}
+
+		// Generate a token
+		tokenBytes := make([]byte, 128)
+		_, err := rand.Read(tokenBytes)
+		if err != nil {
+			return fmt.Errorf("could not create token: %w", err)
+		}
+		tokenString := base64.StdEncoding.EncodeToString(tokenBytes)
+		token := Token{
+			Value:     tokenString,
+			User:      user,
+			ExpiresAt: time.Now().Add(s.Opts.TokenExperiation),
+		}
+
+		tx.Create(&token)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to create token: %w", tx.Error)
+		}
+
+		t = tokenString
+
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("transaction failed: %w", err)
 	}
 
-	return "", fmt.Errorf("user %s not found", userName)
+	return t, nil
 }
 
-func (s *securityService) ChangeUserPassword(userName string, hashType string, newPassword string) error {
-	s.Lock.Lock()
-	defer s.Lock.Unlock()
-	data := s.currentData()
-
-	for i, u := range data.Users {
-		if u.Name == userName {
-			data.Users[i].HashedPassword = newPassword
-			break
+func (s *securityService) ChangeUserPassword(userName string, newPassword string) error {
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if user exists
+		user := User{}
+		tx.Where("name = ?", userName).First(&user)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("user %s not found", userName)
 		}
-	}
 
-	err := s.write()
+		// Update password
+		user.HashedPassword = newPassword
+		tx.Save(&user)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to update user password: %w", tx.Error)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to write data: %w", err)
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
 	return nil
 }
 
 func (s *securityService) Logout(token string) error {
-	s.Lock.Lock()
-	defer s.Lock.Unlock()
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if token exists
+		tokenEntity := Token{}
+		tx.Where("value = ?", token).First(&tokenEntity)
+		if tx.Error != nil && tx.RowsAffected == 0 {
+			return fmt.Errorf("token %s not found", token)
+		}
 
-	if _, ok := s.Tokens[token]; !ok {
-		return fmt.Errorf("invalid token")
+		// Delete token
+		tx.Delete(&tokenEntity)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to delete token: %w", tx.Error)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
-	delete(s.Tokens, token)
 	return nil
 }
 
 func (s *securityService) IsTokenValid(token string, userName string) bool {
-	s.Lock.RLock()
-	defer s.Lock.RUnlock()
+	var valid bool = false
 
-	if u, ok := s.Tokens[token]; ok {
-		return u == userName
+	err := s.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		// Check if token exists
+		tokenEntity := Token{}
+		tx.Where("value = ? AND user_id = (SELECT id FROM users WHERE name = ?)", token, userName).First(&tokenEntity)
+		if tx.Error != nil {
+			return fmt.Errorf("failed to check token: %w", tx.Error)
+		}
+
+		if tx.RowsAffected == 0 {
+			valid = false
+			return nil
+		}
+
+		if !tokenEntity.IsExpired() {
+			valid = true
+		}
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		s.Opts.Logger.Errorf("failed to check token %w", err)
+		return false
 	}
-	return false
+
+	return valid
 }

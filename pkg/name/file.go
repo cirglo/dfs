@@ -1,70 +1,142 @@
 package name
 
 import (
-	"encoding/json"
+	"database/sql"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"io/fs"
-	"os"
+	"gorm.io/gorm"
 	"path/filepath"
+	"slices"
 	"sort"
-	"sync"
-)
-
-const (
-	metaFileName = "meta.json"
+	"strings"
+	"time"
 )
 
 type FileService interface {
-	StatFile(p Principal, filePath string) (FileInfo, error)
-	GetChildren(p Principal, filePath string) ([]FileInfo, error)
-	GetParent(p Principal, filePath string) (FileInfo, error)
-	CreateFile(p Principal, filePath string, perms Permissions) (FileInfo, error)
-	CreateDir(p Principal, filePath string, perms Permissions) (FileInfo, error)
-	DeleteFile(p Principal, filePath string) error
-	DeleteDir(p Principal, filePath string) error
-	AddBlockInfo(p Principal, filePath string, blockInfo BlockInfo) error
-	RemoveBlockInfo(p Principal, filePath string, blockInfo BlockInfo) error
+	ListFiles(p Principal, path string) ([]FileInfo, error)
+	ListDirs(p Principal, path string) ([]DirInfo, error)
+	CreateFile(p Principal, path string, perms Permissions) (FileInfo, error)
+	CreateDir(p Principal, path string, perms Permissions) (FileInfo, error)
+	DeleteFile(p Principal, path string) error
+	DeleteDir(p Principal, path string) error
+	AddBlockInfo(p Principal, path string, blockInfo BlockInfo) error
+	RemoveBlockInfo(p Principal, path string, blockInfo BlockInfo) error
+}
+
+type DirInfo struct {
+	ID          uint64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Name        string      `gorm:"index"`
+	Parent      *DirInfo    `gorm:"many2many:dir_childdirs;"`
+	ChildDirs   []*DirInfo  `gorm:"many2many:dir_childdirs;"`
+	ChildFiles  []*FileInfo `gorm:"many2many:dir_childfiles;"`
+	Permissions Permissions `gorm:"embedded"`
 }
 
 type FileInfo struct {
-	Path        string      `json:"path"`
-	IsDir       bool        `json:"isDir"`
-	ID          string      `json:"id"`
-	Size        uint64      `json:"size"`
-	Owner       string      `json:"owner"`
-	Group       string      `json:"group"`
-	Permissions Permissions `json:"permissions"`
-	BlockInfos  []BlockInfo `json:"blockInfos"`
+	ID          uint64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Name        string   `gorm:"index"`
+	Dir         *DirInfo `gorm:"many2many:dir_childfiles;"`
+	Size        uint64
+	Permissions Permissions `gorm:"embedded"`
+	BlockInfos  []BlockInfo
 }
 
 type BlockInfo struct {
-	ID        string     `json:"id"`
-	Locations []Location `json:"locations"`
-	Sequence  uint64     `json:"sequence"`
-	Length    uint32     `json:"length"`
+	ID        uint64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Locations []Location
+	Sequence  uint64
+	Length    uint32
 }
 
 type Location struct {
-	Hostname string `json:"hostname"`
-	Port     uint16 `json:"port"`
+	ID        uint64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Hostname  string
+	Port      uint16
 }
 
-type Principal struct {
-	User  string
-	Group string
+type Principal interface {
+	ComputePrivileges(permissions Permissions) Privileges
 }
 
-func rootPrincipal() Principal {
-	return Principal{
-		User:  "",
-		Group: "",
+type principal struct {
+	user  string
+	group string
+}
+
+func (p *principal) User() string {
+	return p.user
+}
+
+func (p *principal) Group() string {
+	return p.group
+}
+
+func NewPrincipal(user, group string) Principal {
+	return &principal{
+		user:  user,
+		group: group,
 	}
 }
 
-func (p Principal) IsRoot() bool {
-	return p.User == "" && p.Group == ""
+func (p principal) ComputePrivileges(permissions Permissions) Privileges {
+	canRead := false
+	canWrite := false
+
+	if permissions.Owner == p.user {
+		if permissions.OwnerPermission.Read {
+			canRead = true
+		}
+
+		if permissions.OwnerPermission.Write {
+			canWrite = true
+		}
+	}
+
+	if permissions.Group == p.group {
+		if permissions.GroupPermission.Read {
+			canRead = true
+		}
+
+		if permissions.GroupPermission.Write {
+			canWrite = true
+		}
+	}
+
+	if permissions.OtherPermisson.Read {
+		canRead = true
+	}
+
+	if permissions.OtherPermisson.Write {
+		canWrite = true
+	}
+
+	return Privileges{
+		Read:  canRead,
+		Write: canWrite,
+	}
+
+}
+
+type rootPrincipal struct {
+}
+
+func newRootPrincipal() Principal {
+	return &rootPrincipal{}
+}
+
+func (p rootPrincipal) ComputePrivileges(permissions Permissions) Privileges {
+	return Privileges{
+		Read:  true,
+		Write: true,
+	}
 }
 
 type Privileges struct {
@@ -80,95 +152,35 @@ func (p Privileges) Union(o Privileges) Privileges {
 }
 
 type Permission struct {
-	Read  bool `json:"read"`
-	Write bool `json:"write"`
+	Read  bool
+	Write bool
 }
 
 type Permissions struct {
-	Owner           string     `json:"owner"`
-	Group           string     `json:"group"`
-	OwnerPermission Permission `json:"ownerPermission"`
-	GroupPermission Permission `json:"groupPermission"`
-	OtherPermisson  Permission `json:"otherPermission"`
-}
-
-func (p Permissions) Privileges(principal Principal) Privileges {
-	return Privileges{
-		Read:  p.CanRead(principal),
-		Write: p.CanWrite(principal),
-	}
-}
-
-func (p Permissions) CanRead(principal Principal) bool {
-
-	if principal.IsRoot() {
-		return true
-	}
-
-	if p.OtherPermisson.Read {
-		return true
-	}
-
-	if p.Group == principal.Group {
-		if p.GroupPermission.Read {
-			return true
-		}
-	}
-
-	if p.Owner == principal.User {
-		if p.OwnerPermission.Read {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (p Permissions) CanWrite(principal Principal) bool {
-	if principal.IsRoot() {
-		return true
-	}
-
-	if p.OtherPermisson.Write {
-		return true
-	}
-
-	if p.Group == principal.Group {
-		if p.GroupPermission.Write {
-			return true
-		}
-	}
-
-	if p.Owner == principal.User {
-		if p.OwnerPermission.Write {
-			return true
-		}
-	}
-
-	return false
+	Owner           string
+	Group           string
+	OwnerPermission Permission
+	GroupPermission Permission
+	OtherPermisson  Permission
 }
 
 type FileServiceOpts struct {
 	Logger *logrus.Logger
-	Dir    fs.FileInfo
+	DB     *gorm.DB
 }
 
 func (f FileServiceOpts) Validate() error {
 	if f.Logger == nil {
 		return fmt.Errorf("logger is required")
 	}
-	if f.Dir == nil {
-		return fmt.Errorf("dir is required")
-	}
-	if !f.Dir.IsDir() {
-		return fmt.Errorf("dir must be a directory")
+	if f.DB == nil {
+		return fmt.Errorf("db is required")
 	}
 	return nil
 }
 
 type fileService struct {
 	Opts FileServiceOpts
-	Lock sync.RWMutex
 }
 
 var _ FileService = &fileService{}
@@ -182,342 +194,399 @@ func NewFileService(opts FileServiceOpts) (FileService, error) {
 	}, nil
 }
 
-func (f *fileService) determinePrivileges(p Principal, filePath string) (Privileges, error) {
-	if p.IsRoot() {
-		return Privileges{
-			Read:  true,
-			Write: true,
-		}, nil
+func (f *fileService) lookupDirs(tx *gorm.DB, p Principal, path string) ([]DirInfo, Privileges, error) {
+	var dirInfos []DirInfo
+	var parent *DirInfo
+	privs := Privileges{
+		Read:  false,
+		Write: false,
 	}
 
-	realPath := filepath.Join(f.Opts.Dir.Name(), filePath)
-	metaPath := filepath.Join(realPath, metaFileName)
+	for name := range strings.Split(path, "/") {
+		current := DirInfo{}
 
-	fi, err := f.readMetadataFile(metaPath)
-	if err != nil {
-		return Privileges{}, fmt.Errorf("failed to read metadata file %s: %w", metaPath, err)
-	}
-
-	privs := fi.Permissions.Privileges(p)
-
-	if filePath != "/" && (privs.Read || privs.Write) {
-		parentPath := filepath.Dir(realPath)
-		parentPrivs, err := f.determinePrivileges(rootPrincipal(), parentPath)
-		if err != nil {
-			return Privileges{}, fmt.Errorf("failed to get parent priveleges %s: %w", parentPath, err)
+		if parent == nil {
+			err := tx.Where("parent IS NULL").First(&current).Error
+			if err != nil {
+				return dirInfos, privs, fmt.Errorf("failed to get root dir: %w", err)
+			}
+			privs = p.ComputePrivileges(current.Permissions)
+		} else {
+			err := tx.Where("parent = ? AND name = ?", parent.ID, name).First(&current).Error
+			if err != nil {
+				return dirInfos, privs, fmt.Errorf("failed to get child dir %s: %w", name, err)
+			}
+			privs = p.ComputePrivileges(current.Permissions).Union(privs)
 		}
 
-		privs = privs.Union(parentPrivs)
+		dirInfos = append(dirInfos, current)
+		parent = &current
+
 	}
 
-	return privs, nil
+	return dirInfos, privs, nil
 }
 
-func (f *fileService) readMetadataFile(path string) (FileInfo, error) {
-	fi := FileInfo{}
-
-	b, err := os.ReadFile(path)
+func (f *fileService) lookupFile(tx *gorm.DB, p Principal, path string) ([]DirInfo, FileInfo, Privileges, error) {
+	dirInfos, privs, err := f.lookupDirs(tx, p, filepath.Dir(path))
 	if err != nil {
-		return fi, fmt.Errorf("failed to read metadata file %s: %w", path, err)
+		return nil, FileInfo{}, Privileges{}, fmt.Errorf("failed to lookup dirs: %w", err)
+	}
+	fileInfo := FileInfo{}
+	err = tx.Where("parent = ? AND name = ?", dirInfos[len(dirInfos)-1].ID, filepath.Base(path)).First(&fileInfo).Error
+	if err != nil {
+		return nil, FileInfo{}, Privileges{}, fmt.Errorf("failed to get file %s: %w", path, err)
 	}
 
-	err = json.Unmarshal(b, &fi)
-	if err != nil {
-		return fi, fmt.Errorf("failed to unmarshal metadata file %s: %w", path, err)
-	}
+	privs = privs.Union(p.ComputePrivileges(fileInfo.Permissions))
 
-	return fi, nil
-}
-
-func (f *fileService) writeMetadataFile(path string, fi FileInfo) error {
-	b, err := json.Marshal(fi)
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata file %s: %w", path, err)
-	}
-
-	err = os.WriteFile(path, b, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("failed to write metadata file %s: %w", path, err)
-	}
-
-	return nil
+	return dirInfos, fileInfo, privs, nil
 }
 
 func (f *fileService) StatFile(p Principal, filePath string) (FileInfo, error) {
-	f.Lock.RLock()
-	defer f.Lock.RUnlock()
-	privs, err := f.determinePrivileges(p, filePath)
-	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", filePath, err)
-	}
-
-	if !privs.Read {
-		return FileInfo{}, fmt.Errorf("permission denied for %s", filePath)
-	}
-
-	realPath := filepath.Join(f.Opts.Dir.Name(), filePath)
-	metaPath := filepath.Join(realPath, metaFileName)
-
-	fi, err := f.readMetadataFile(metaPath)
-	if err != nil {
-		return fi, fmt.Errorf("failed to read metadata file %s: %w", metaPath, err)
-	}
-
-	return fi, nil
-}
-
-func (f *fileService) GetChildren(p Principal, filePath string) ([]FileInfo, error) {
-	f.Lock.RLock()
-	defer f.Lock.RUnlock()
-	privs, err := f.determinePrivileges(p, filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine privileges for %s: %w", filePath, err)
-	}
-	if !privs.Read {
-		return nil, fmt.Errorf("permission denied for %s", filePath)
-	}
-	realPath := filepath.Join(f.Opts.Dir.Name(), filePath)
-	dirs, err := os.ReadDir(realPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read dir %s: %w", realPath, err)
-	}
-	var children []FileInfo
-
-	for _, dir := range dirs {
-		if dir.IsDir() {
-			metaPath := filepath.Join(realPath, dir.Name(), metaFileName)
-			fi, err := f.readMetadataFile(metaPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read metadata file %s: %w", metaPath, err)
-			}
-			children = append(children, fi)
+	var fileInfo FileInfo
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		_, fi, privs, err := f.lookupFile(tx, p, filePath)
+		if err != nil {
+			return fmt.Errorf("failed to lookup file %s: %w", filePath, err)
 		}
+
+		if !privs.Read {
+			return fmt.Errorf("permission denied for %s", filePath)
+		}
+
+		fileInfo = fi
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return FileInfo{}, fmt.Errorf("failed to stat file %s: %w", filePath, err)
 	}
 
-	return children, nil
+	return fileInfo, nil
 }
 
-func (f *fileService) GetParent(p Principal, path string) (FileInfo, error) {
-	f.Lock.RLock()
-	defer f.Lock.RUnlock()
-	privs, err := f.determinePrivileges(p, filepath.Dir(path))
-	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", path, err)
-	}
-	if !privs.Read {
-		return FileInfo{}, fmt.Errorf("permission denied for %s", path)
-	}
-	realPath := filepath.Join(f.Opts.Dir.Name(), path)
-	parentPath := filepath.Dir(realPath)
-	metaPath := filepath.Join(parentPath, metaFileName)
+func (f *fileService) StatDir(p Principal, dirPath string) (DirInfo, error) {
+	var dirInfo DirInfo
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		dirInfos, privs, err := f.lookupDirs(tx, p, dirPath)
+		if err != nil {
+			return fmt.Errorf("failed to lookup dir %s: %w", dirPath, err)
+		}
 
-	fi, err := f.readMetadataFile(metaPath)
+		if !privs.Read {
+			return fmt.Errorf("permission denied for %s", dirPath)
+		}
+
+		dirInfo = dirInfos[len(dirInfos)-1]
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
-		return fi, fmt.Errorf("failed to read metadata file %s: %w", metaPath, err)
+		return DirInfo{}, fmt.Errorf("failed to stat dir %s: %w", dirPath, err)
 	}
 
-	return fi, nil
+	return dirInfo, nil
+}
+
+func (f *fileService) ListFiles(p Principal, path string) ([]FileInfo, error) {
+	var fileInfos []FileInfo
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		dirInfos, privs, err := f.lookupDirs(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup dirs: %w", err)
+		}
+
+		if !privs.Read {
+			return fmt.Errorf("permission denied for %s", path)
+		}
+
+		err = tx.Model(&dirInfos[len(dirInfos)-1]).Association("ChildFiles").Find(&fileInfos)
+		if err != nil {
+			return fmt.Errorf("failed to list files: %w", err)
+		}
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list files: %w", err)
+	}
+
+	sort.Slice(fileInfos, func(i, j int) bool {
+		return fileInfos[i].Name < fileInfos[j].Name
+	})
+
+	return fileInfos, nil
+}
+
+func (f *fileService) ListDirs(p Principal, path string) ([]DirInfo, error) {
+	var dirInfos []DirInfo
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		dirInfos, privs, err := f.lookupDirs(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup dirs: %w", err)
+		}
+
+		if !privs.Read {
+			return fmt.Errorf("permission denied for %s", path)
+		}
+
+		err = tx.Model(&dirInfos[len(dirInfos)-1]).Association("ChildDirs").Find(&dirInfos)
+		if err != nil {
+			return fmt.Errorf("failed to list dirs: %w", err)
+		}
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list dirs: %w", err)
+	}
+
+	sort.Slice(dirInfos, func(i, j int) bool {
+		return dirInfos[i].Name < dirInfos[j].Name
+	})
+
+	return dirInfos, nil
 }
 
 func (f *fileService) CreateFile(p Principal, path string, perms Permissions) (FileInfo, error) {
-	f.Lock.Lock()
-	defer f.Lock.Unlock()
-	privs, err := f.determinePrivileges(p, filepath.Dir(path))
+	var fileInfo FileInfo
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		dirInfos, privs, err := f.lookupDirs(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup dirs: %w", err)
+		}
+
+		if !privs.Write {
+			return fmt.Errorf("permission denied for %s", path)
+		}
+
+		parentDir := dirInfos[len(dirInfos)-1]
+		fileInfo = FileInfo{
+			Name:        filepath.Base(path),
+			Permissions: perms,
+			Dir:         &parentDir,
+		}
+
+		contains := slices.ContainsFunc(parentDir.ChildFiles, func(f *FileInfo) bool {
+			return f.Name == fileInfo.Name
+		})
+
+		if contains {
+			return fmt.Errorf("file %s already exists", path)
+		}
+
+		contains = slices.ContainsFunc(parentDir.ChildDirs, func(d *DirInfo) bool {
+			return d.Name == fileInfo.Name
+		})
+
+		if contains {
+			return fmt.Errorf("file %s is a directory", path)
+		}
+
+		err = tx.Create(&fileInfo).Error
+		if err != nil {
+			return fmt.Errorf("failed to create file %s: %w", path, err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", path, err)
-	}
-	if !privs.Write {
-		return FileInfo{}, fmt.Errorf("permission denied for %s", path)
-	}
-	realPath := filepath.Join(f.Opts.Dir.Name(), path)
-
-	err = os.MkdirAll(realPath, os.ModePerm)
-	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to create dir %s: %w", realPath, err)
+		return FileInfo{}, fmt.Errorf("failed to create file %s: %w", path, err)
 	}
 
-	metaPath := filepath.Join(realPath, metaFileName)
-	fi := FileInfo{
-		Path:        path,
-		IsDir:       false,
-		ID:          uuid.New().String(),
-		Size:        0,
-		Permissions: perms,
-		BlockInfos:  []BlockInfo{},
-	}
-
-	err = f.writeMetadataFile(metaPath, fi)
-	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to write metadata file %s: %w", metaPath, err)
-	}
-
-	return fi, nil
+	return fileInfo, nil
 }
 
 func (f *fileService) CreateDir(p Principal, path string, perms Permissions) (FileInfo, error) {
-	f.Lock.Lock()
-	defer f.Lock.Unlock()
-	privs, err := f.determinePrivileges(p, filepath.Dir(path))
+	var dirInfo DirInfo
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		dirInfos, privs, err := f.lookupDirs(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup dirs: %w", err)
+		}
+
+		if !privs.Write {
+			return fmt.Errorf("permission denied for %s", path)
+		}
+
+		parentDir := dirInfos[len(dirInfos)-1]
+		dirInfo = DirInfo{
+			Name:        filepath.Base(path),
+			Permissions: perms,
+			Parent:      &parentDir,
+		}
+
+		contains := slices.ContainsFunc(parentDir.ChildDirs, func(d *DirInfo) bool {
+			return d.Name == dirInfo.Name
+		})
+
+		if contains {
+			return fmt.Errorf("directory %s already exists", path)
+		}
+
+		contains = slices.ContainsFunc(parentDir.ChildFiles, func(f *FileInfo) bool {
+			return f.Name == dirInfo.Name
+		})
+
+		if contains {
+			return fmt.Errorf("directory %s is a file", path)
+		}
+
+		err = tx.Create(&dirInfo).Error
+		if err != nil {
+			return fmt.Errorf("failed to create dir %s: %w", path, err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to determine privileges for %s: %w", path, err)
-	}
-	if !privs.Write {
-		return FileInfo{}, fmt.Errorf("permission denied for %s", path)
-	}
-	realPath := filepath.Join(f.Opts.Dir.Name(), path)
-
-	err = os.MkdirAll(realPath, os.ModePerm)
-	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to create dir %s: %w", realPath, err)
+		return FileInfo{}, fmt.Errorf("failed to create dir %s: %w", path, err)
 	}
 
-	metaPath := filepath.Join(realPath, metaFileName)
-	fi := FileInfo{
-		Path:        path,
-		IsDir:       true,
-		ID:          uuid.New().String(),
-		Size:        0,
-		Permissions: perms,
-		BlockInfos:  []BlockInfo{},
-	}
-
-	err = f.writeMetadataFile(metaPath, fi)
-	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to write metadata file %s: %w", metaPath, err)
-	}
-
-	return fi, nil
+	return FileInfo{}, nil
 }
 
-func (f *fileService) DeleteFile(p Principal, filePath string) error {
-	f.Lock.Lock()
-	defer f.Lock.Unlock()
-	privs, err := f.determinePrivileges(p, filePath)
-	if err != nil {
-		return fmt.Errorf("failed to determine privileges for %s: %w", filePath, err)
-	}
-	if !privs.Write {
-		return fmt.Errorf("permission denied for %s", filePath)
-	}
-	realPath := filepath.Join(f.Opts.Dir.Name(), filePath)
-	metaPath := filepath.Join(realPath, metaFileName)
-	fi, err := f.readMetadataFile(metaPath)
-	if err != nil {
-		return fmt.Errorf("failed to read metadata file %s: %w", metaPath, err)
-	}
+func (f *fileService) DeleteFile(p Principal, path string) error {
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		dirInfos, fileInfo, privs, err := f.lookupFile(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup file %s: %w", path, err)
+		}
 
-	if fi.IsDir {
-		return fmt.Errorf("cannot delete directory %s", filePath)
-	}
+		if !privs.Write {
+			return fmt.Errorf("permission denied for %s", path)
+		}
 
-	err = os.Remove(metaPath)
-	if err != nil {
-		return fmt.Errorf("failed to remove metadata file %s: %w", metaPath, err)
-	}
+		err = tx.Model(&dirInfos[len(dirInfos)-1]).Association("ChildFiles").Delete(&fileInfo)
+		if err != nil {
+			return fmt.Errorf("failed to delete file %s: %w", path, err)
+		}
 
-	err = os.Remove(realPath)
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to remove file %s: %w", realPath, err)
+		return fmt.Errorf("failed to delete file %s: %w", path, err)
 	}
 
 	return nil
 }
 
-func (f *fileService) DeleteDir(p Principal, filePath string) error {
-	f.Lock.Lock()
-	defer f.Lock.Unlock()
-	privs, err := f.determinePrivileges(p, filePath)
-	if err != nil {
-		return fmt.Errorf("failed to determine privileges for %s: %w", filePath, err)
-	}
-	if !privs.Write {
-		return fmt.Errorf("permission denied for %s", filePath)
-	}
-	realPath := filepath.Join(f.Opts.Dir.Name(), filePath)
-	metaPath := filepath.Join(realPath, metaFileName)
-	fi, err := f.readMetadataFile(metaPath)
-	if err != nil {
-		return fmt.Errorf("failed to read metadata file %s: %w", metaPath, err)
-	}
+func (f *fileService) DeleteDir(p Principal, path string) error {
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		dirInfos, privs, err := f.lookupDirs(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup dirs: %w", err)
+		}
 
-	if !fi.IsDir {
-		return fmt.Errorf("cannot delete file %s", filePath)
-	}
+		if !privs.Write {
+			return fmt.Errorf("permission denied for %s", path)
+		}
 
-	dirs, err := os.ReadDir(realPath)
+		dirInfo := dirInfos[len(dirInfos)-1]
+		if len(dirInfo.ChildFiles) > 0 {
+			return fmt.Errorf("directory %s is not empty", path)
+		}
+		if len(dirInfo.ChildDirs) > 0 {
+			return fmt.Errorf("directory %s is not empty", path)
+		}
+
+		err = tx.Delete(&dirInfo).Error
+		if err != nil {
+			return fmt.Errorf("failed to delete dir %s: %w", path, err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to read dir %s: %w", realPath, err)
-	}
-
-	if len(dirs) > 0 {
-		return fmt.Errorf("directory %s is not empty", filePath)
-	}
-
-	err = os.Remove(metaPath)
-	if err != nil {
-		return fmt.Errorf("failed to remove metadata file %s: %w", metaPath, err)
-	}
-
-	err = os.Remove(realPath)
-	if err != nil {
-		return fmt.Errorf("failed to remove file %s: %w", realPath, err)
+		return fmt.Errorf("failed to delete dir %s: %w", path, err)
 	}
 
 	return nil
 }
 
-func (f *fileService) AddBlockInfo(p Principal, filePath string, blockInfo BlockInfo) error {
-	f.Lock.Lock()
-	defer f.Lock.Unlock()
-	privs, err := f.determinePrivileges(p, filePath)
+func (f *fileService) AddBlockInfo(p Principal, path string, blockInfo BlockInfo) error {
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		_, fileInfo, privs, err := f.lookupFile(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup file %s: %w", path, err)
+		}
+
+		if !privs.Write {
+			return fmt.Errorf("permission denied for %s", path)
+		}
+
+		blockInfo.Locations = make([]Location, 0)
+		err = tx.Create(&blockInfo).Error
+		if err != nil {
+			return fmt.Errorf("failed to create block info: %w", err)
+		}
+
+		err = tx.Model(&fileInfo).Association("BlockInfos").Append(&blockInfo)
+		if err != nil {
+			return fmt.Errorf("failed to add block info to file: %w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to determine privileges for %s: %w", filePath, err)
-	}
-	if !privs.Write {
-		return fmt.Errorf("permission denied for %s", filePath)
-	}
-	realPath := filepath.Join(f.Opts.Dir.Name(), filePath)
-	metaPath := filepath.Join(realPath, metaFileName)
-	fi, err := f.readMetadataFile(metaPath)
-	if err != nil {
-		return fmt.Errorf("failed to read metadata file %s: %w", metaPath, err)
+		return fmt.Errorf("failed to add block info to file %s: %w", path, err)
 	}
 
-	fi.BlockInfos = append(fi.BlockInfos, blockInfo)
+	return nil
+}
 
-	sort.Slice(fi.BlockInfos, func(i, j int) bool {
-		return fi.BlockInfos[i].ID < fi.BlockInfos[j].ID
+func (f *fileService) RemoveBlockInfo(p Principal, path string, blockInfo BlockInfo) error {
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		_, fileInfo, privs, err := f.lookupFile(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup file %s: %w", path, err)
+		}
+
+		if !privs.Write {
+			return fmt.Errorf("permission denied for %s", path)
+		}
+
+		err = tx.Model(&fileInfo).Association("BlockInfos").Delete(&blockInfo)
+		if err != nil {
+			return fmt.Errorf("failed to remove block info from file: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to remove block info from file %s: %w", path, err)
+	}
+
+	return nil
+}
+
+func (f *fileService) GetBlockInfo(p Principal, path string) ([]BlockInfo, error) {
+	var blockInfos []BlockInfo
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		_, fileInfo, privs, err := f.lookupFile(tx, p, path)
+		if err != nil {
+			return fmt.Errorf("failed to lookup file %s: %w", path, err)
+		}
+
+		if !privs.Read {
+			return fmt.Errorf("permission denied for %s", path)
+		}
+
+		err = tx.Model(&fileInfo).Association("BlockInfos").Find(&blockInfos)
+		if err != nil {
+			return fmt.Errorf("failed to get block info: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block info for file %s: %w", path, err)
+	}
+
+	sort.Slice(blockInfos, func(i, j int) bool {
+		return blockInfos[i].Sequence < blockInfos[j].Sequence
 	})
 
-	return nil
-}
-
-func (f *fileService) RemoveBlockInfo(p Principal, filePath string, blockInfo BlockInfo) error {
-	f.Lock.Lock()
-	defer f.Lock.Unlock()
-	privs, err := f.determinePrivileges(p, filePath)
-	if err != nil {
-		return fmt.Errorf("failed to determine privileges for %s: %w", filePath, err)
-	}
-	if !privs.Write {
-		return fmt.Errorf("permission denied for %s", filePath)
-	}
-	realPath := filepath.Join(f.Opts.Dir.Name(), filePath)
-	metaPath := filepath.Join(realPath, metaFileName)
-	fi, err := f.readMetadataFile(metaPath)
-	if err != nil {
-		return fmt.Errorf("failed to read metadata file %s: %w", metaPath, err)
-	}
-
-	var blockInfos []BlockInfo
-
-	for _, bi := range fi.BlockInfos {
-		if bi.ID != blockInfo.ID {
-			blockInfos = append(blockInfos, bi)
-		}
-	}
-
-	fi.BlockInfos = blockInfos
-
-	return nil
+	return blockInfos, nil
 }
