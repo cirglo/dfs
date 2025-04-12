@@ -23,12 +23,11 @@ const (
 
 type BlockInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockId       string                 `protobuf:"bytes,1,opt,name=blockId,proto3" json:"blockId,omitempty"`
-	FileId        string                 `protobuf:"bytes,2,opt,name=fileId,proto3" json:"fileId,omitempty"`
-	Crc           uint32                 `protobuf:"varint,3,opt,name=crc,proto3" json:"crc,omitempty"`
-	Sequence      uint64                 `protobuf:"varint,4,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	Length        uint32                 `protobuf:"varint,5,opt,name=length,proto3" json:"length,omitempty"`
-	Path          string                 `protobuf:"bytes,6,opt,name=path,proto3" json:"path,omitempty"`
+	BlockId       uint64                 `protobuf:"varint,1,opt,name=blockId,proto3" json:"blockId,omitempty"`
+	Crc           uint32                 `protobuf:"varint,2,opt,name=crc,proto3" json:"crc,omitempty"`
+	Sequence      uint64                 `protobuf:"varint,3,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Length        uint32                 `protobuf:"varint,4,opt,name=length,proto3" json:"length,omitempty"`
+	Path          string                 `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -63,18 +62,11 @@ func (*BlockInfo) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *BlockInfo) GetBlockId() string {
+func (x *BlockInfo) GetBlockId() uint64 {
 	if x != nil {
 		return x.BlockId
 	}
-	return ""
-}
-
-func (x *BlockInfo) GetFileId() string {
-	if x != nil {
-		return x.FileId
-	}
-	return ""
+	return 0
 }
 
 func (x *BlockInfo) GetCrc() uint32 {
@@ -106,26 +98,26 @@ func (x *BlockInfo) GetPath() string {
 }
 
 // Define a User message
-type GetBlockIdsRequest struct {
+type GetBlockInfosRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetBlockIdsRequest) Reset() {
-	*x = GetBlockIdsRequest{}
+func (x *GetBlockInfosRequest) Reset() {
+	*x = GetBlockInfosRequest{}
 	mi := &file_nodeserver_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetBlockIdsRequest) String() string {
+func (x *GetBlockInfosRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetBlockIdsRequest) ProtoMessage() {}
+func (*GetBlockInfosRequest) ProtoMessage() {}
 
-func (x *GetBlockIdsRequest) ProtoReflect() protoreflect.Message {
+func (x *GetBlockInfosRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_nodeserver_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -137,32 +129,32 @@ func (x *GetBlockIdsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetBlockIdsRequest.ProtoReflect.Descriptor instead.
-func (*GetBlockIdsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetBlockInfosRequest.ProtoReflect.Descriptor instead.
+func (*GetBlockInfosRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{1}
 }
 
-type GetBlockIdsResponse struct {
+type GetBlockInfosResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ids           []string               `protobuf:"bytes,1,rep,name=ids,proto3" json:"ids,omitempty"`
+	BlockInfos    []*BlockInfo           `protobuf:"bytes,1,rep,name=blockInfos,proto3" json:"blockInfos,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetBlockIdsResponse) Reset() {
-	*x = GetBlockIdsResponse{}
+func (x *GetBlockInfosResponse) Reset() {
+	*x = GetBlockInfosResponse{}
 	mi := &file_nodeserver_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetBlockIdsResponse) String() string {
+func (x *GetBlockInfosResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetBlockIdsResponse) ProtoMessage() {}
+func (*GetBlockInfosResponse) ProtoMessage() {}
 
-func (x *GetBlockIdsResponse) ProtoReflect() protoreflect.Message {
+func (x *GetBlockInfosResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_nodeserver_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -174,21 +166,21 @@ func (x *GetBlockIdsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetBlockIdsResponse.ProtoReflect.Descriptor instead.
-func (*GetBlockIdsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetBlockInfosResponse.ProtoReflect.Descriptor instead.
+func (*GetBlockInfosResponse) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *GetBlockIdsResponse) GetIds() []string {
+func (x *GetBlockInfosResponse) GetBlockInfos() []*BlockInfo {
 	if x != nil {
-		return x.Ids
+		return x.BlockInfos
 	}
 	return nil
 }
 
 type GetBlockInfoRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -223,11 +215,11 @@ func (*GetBlockInfoRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetBlockInfoRequest) GetId() string {
+func (x *GetBlockInfoRequest) GetId() uint64 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 type GetBlockInfoResponse struct {
@@ -276,7 +268,7 @@ func (x *GetBlockInfoResponse) GetBlockInfo() *BlockInfo {
 
 type GetBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -311,11 +303,11 @@ func (*GetBlockRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *GetBlockRequest) GetId() string {
+func (x *GetBlockRequest) GetId() uint64 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 type GetBlockResponse struct {
@@ -468,7 +460,7 @@ func (x *WriteBlockResponse) GetBlockInfo() *BlockInfo {
 
 type DeleteBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -503,16 +495,16 @@ func (*DeleteBlockRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *DeleteBlockRequest) GetId() string {
+func (x *DeleteBlockRequest) GetId() uint64 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 type DeleteBlockResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -547,16 +539,16 @@ func (*DeleteBlockResponse) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *DeleteBlockResponse) GetId() string {
+func (x *DeleteBlockResponse) GetId() uint64 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 type CopyBlockRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id             uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	DestinationUrl string                 `protobuf:"bytes,2,opt,name=destinationUrl,proto3" json:"destinationUrl,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -592,11 +584,11 @@ func (*CopyBlockRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *CopyBlockRequest) GetId() string {
+func (x *CopyBlockRequest) GetId() uint64 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 func (x *CopyBlockRequest) GetDestinationUrl() string {
@@ -647,23 +639,24 @@ var File_nodeserver_proto protoreflect.FileDescriptor
 const file_nodeserver_proto_rawDesc = "" +
 	"\n" +
 	"\x10nodeserver.proto\x12\n" +
-	"nodeserver\"\x97\x01\n" +
+	"nodeserver\"\x7f\n" +
 	"\tBlockInfo\x12\x18\n" +
-	"\ablockId\x18\x01 \x01(\tR\ablockId\x12\x16\n" +
-	"\x06fileId\x18\x02 \x01(\tR\x06fileId\x12\x10\n" +
-	"\x03crc\x18\x03 \x01(\rR\x03crc\x12\x1a\n" +
-	"\bsequence\x18\x04 \x01(\x04R\bsequence\x12\x16\n" +
-	"\x06length\x18\x05 \x01(\rR\x06length\x12\x12\n" +
-	"\x04path\x18\x06 \x01(\tR\x04path\"\x14\n" +
-	"\x12GetBlockIdsRequest\"'\n" +
-	"\x13GetBlockIdsResponse\x12\x10\n" +
-	"\x03ids\x18\x01 \x03(\tR\x03ids\"%\n" +
+	"\ablockId\x18\x01 \x01(\x04R\ablockId\x12\x10\n" +
+	"\x03crc\x18\x02 \x01(\rR\x03crc\x12\x1a\n" +
+	"\bsequence\x18\x03 \x01(\x04R\bsequence\x12\x16\n" +
+	"\x06length\x18\x04 \x01(\rR\x06length\x12\x12\n" +
+	"\x04path\x18\x05 \x01(\tR\x04path\"\x16\n" +
+	"\x14GetBlockInfosRequest\"N\n" +
+	"\x15GetBlockInfosResponse\x125\n" +
+	"\n" +
+	"blockInfos\x18\x01 \x03(\v2\x15.nodeserver.BlockInfoR\n" +
+	"blockInfos\"%\n" +
 	"\x13GetBlockInfoRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"K\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\"K\n" +
 	"\x14GetBlockInfoResponse\x123\n" +
 	"\tblockInfo\x18\x01 \x01(\v2\x15.nodeserver.BlockInfoR\tblockInfo\"!\n" +
 	"\x0fGetBlockRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"[\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\"[\n" +
 	"\x10GetBlockResponse\x123\n" +
 	"\tblockInfo\x18\x01 \x01(\v2\x15.nodeserver.BlockInfoR\tblockInfo\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\"\\\n" +
@@ -673,15 +666,15 @@ const file_nodeserver_proto_rawDesc = "" +
 	"\x12WriteBlockResponse\x123\n" +
 	"\tblockInfo\x18\x01 \x01(\v2\x15.nodeserver.BlockInfoR\tblockInfo\"$\n" +
 	"\x12DeleteBlockRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"%\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\"%\n" +
 	"\x13DeleteBlockResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"J\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\"J\n" +
 	"\x10CopyBlockRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12&\n" +
 	"\x0edestinationUrl\x18\x02 \x01(\tR\x0edestinationUrl\"\x13\n" +
-	"\x11CopyBlockResponse2\xd7\x03\n" +
-	"\x04Node\x12N\n" +
-	"\vGetBlockIds\x12\x1e.nodeserver.GetBlockIdsRequest\x1a\x1f.nodeserver.GetBlockIdsResponse\x12Q\n" +
+	"\x11CopyBlockResponse2\xdd\x03\n" +
+	"\x04Node\x12T\n" +
+	"\rGetBlockInfos\x12 .nodeserver.GetBlockInfosRequest\x1a!.nodeserver.GetBlockInfosResponse\x12Q\n" +
 	"\fGetBlockInfo\x12\x1f.nodeserver.GetBlockInfoRequest\x1a .nodeserver.GetBlockInfoResponse\x12E\n" +
 	"\bGetBlock\x12\x1b.nodeserver.GetBlockRequest\x1a\x1c.nodeserver.GetBlockResponse\x12K\n" +
 	"\n" +
@@ -704,42 +697,43 @@ func file_nodeserver_proto_rawDescGZIP() []byte {
 
 var file_nodeserver_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_nodeserver_proto_goTypes = []any{
-	(*BlockInfo)(nil),            // 0: nodeserver.BlockInfo
-	(*GetBlockIdsRequest)(nil),   // 1: nodeserver.GetBlockIdsRequest
-	(*GetBlockIdsResponse)(nil),  // 2: nodeserver.GetBlockIdsResponse
-	(*GetBlockInfoRequest)(nil),  // 3: nodeserver.GetBlockInfoRequest
-	(*GetBlockInfoResponse)(nil), // 4: nodeserver.GetBlockInfoResponse
-	(*GetBlockRequest)(nil),      // 5: nodeserver.GetBlockRequest
-	(*GetBlockResponse)(nil),     // 6: nodeserver.GetBlockResponse
-	(*WriteBlockRequest)(nil),    // 7: nodeserver.WriteBlockRequest
-	(*WriteBlockResponse)(nil),   // 8: nodeserver.WriteBlockResponse
-	(*DeleteBlockRequest)(nil),   // 9: nodeserver.DeleteBlockRequest
-	(*DeleteBlockResponse)(nil),  // 10: nodeserver.DeleteBlockResponse
-	(*CopyBlockRequest)(nil),     // 11: nodeserver.CopyBlockRequest
-	(*CopyBlockResponse)(nil),    // 12: nodeserver.CopyBlockResponse
+	(*BlockInfo)(nil),             // 0: nodeserver.BlockInfo
+	(*GetBlockInfosRequest)(nil),  // 1: nodeserver.GetBlockInfosRequest
+	(*GetBlockInfosResponse)(nil), // 2: nodeserver.GetBlockInfosResponse
+	(*GetBlockInfoRequest)(nil),   // 3: nodeserver.GetBlockInfoRequest
+	(*GetBlockInfoResponse)(nil),  // 4: nodeserver.GetBlockInfoResponse
+	(*GetBlockRequest)(nil),       // 5: nodeserver.GetBlockRequest
+	(*GetBlockResponse)(nil),      // 6: nodeserver.GetBlockResponse
+	(*WriteBlockRequest)(nil),     // 7: nodeserver.WriteBlockRequest
+	(*WriteBlockResponse)(nil),    // 8: nodeserver.WriteBlockResponse
+	(*DeleteBlockRequest)(nil),    // 9: nodeserver.DeleteBlockRequest
+	(*DeleteBlockResponse)(nil),   // 10: nodeserver.DeleteBlockResponse
+	(*CopyBlockRequest)(nil),      // 11: nodeserver.CopyBlockRequest
+	(*CopyBlockResponse)(nil),     // 12: nodeserver.CopyBlockResponse
 }
 var file_nodeserver_proto_depIdxs = []int32{
-	0,  // 0: nodeserver.GetBlockInfoResponse.blockInfo:type_name -> nodeserver.BlockInfo
-	0,  // 1: nodeserver.GetBlockResponse.blockInfo:type_name -> nodeserver.BlockInfo
-	0,  // 2: nodeserver.WriteBlockRequest.blockInfo:type_name -> nodeserver.BlockInfo
-	0,  // 3: nodeserver.WriteBlockResponse.blockInfo:type_name -> nodeserver.BlockInfo
-	1,  // 4: nodeserver.Node.GetBlockIds:input_type -> nodeserver.GetBlockIdsRequest
-	3,  // 5: nodeserver.Node.GetBlockInfo:input_type -> nodeserver.GetBlockInfoRequest
-	5,  // 6: nodeserver.Node.GetBlock:input_type -> nodeserver.GetBlockRequest
-	7,  // 7: nodeserver.Node.WriteBlock:input_type -> nodeserver.WriteBlockRequest
-	9,  // 8: nodeserver.Node.DeleteBlock:input_type -> nodeserver.DeleteBlockRequest
-	11, // 9: nodeserver.Node.CopyBlock:input_type -> nodeserver.CopyBlockRequest
-	2,  // 10: nodeserver.Node.GetBlockIds:output_type -> nodeserver.GetBlockIdsResponse
-	4,  // 11: nodeserver.Node.GetBlockInfo:output_type -> nodeserver.GetBlockInfoResponse
-	6,  // 12: nodeserver.Node.GetBlock:output_type -> nodeserver.GetBlockResponse
-	8,  // 13: nodeserver.Node.WriteBlock:output_type -> nodeserver.WriteBlockResponse
-	10, // 14: nodeserver.Node.DeleteBlock:output_type -> nodeserver.DeleteBlockResponse
-	12, // 15: nodeserver.Node.CopyBlock:output_type -> nodeserver.CopyBlockResponse
-	10, // [10:16] is the sub-list for method output_type
-	4,  // [4:10] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	0,  // 0: nodeserver.GetBlockInfosResponse.blockInfos:type_name -> nodeserver.BlockInfo
+	0,  // 1: nodeserver.GetBlockInfoResponse.blockInfo:type_name -> nodeserver.BlockInfo
+	0,  // 2: nodeserver.GetBlockResponse.blockInfo:type_name -> nodeserver.BlockInfo
+	0,  // 3: nodeserver.WriteBlockRequest.blockInfo:type_name -> nodeserver.BlockInfo
+	0,  // 4: nodeserver.WriteBlockResponse.blockInfo:type_name -> nodeserver.BlockInfo
+	1,  // 5: nodeserver.Node.GetBlockInfos:input_type -> nodeserver.GetBlockInfosRequest
+	3,  // 6: nodeserver.Node.GetBlockInfo:input_type -> nodeserver.GetBlockInfoRequest
+	5,  // 7: nodeserver.Node.GetBlock:input_type -> nodeserver.GetBlockRequest
+	7,  // 8: nodeserver.Node.WriteBlock:input_type -> nodeserver.WriteBlockRequest
+	9,  // 9: nodeserver.Node.DeleteBlock:input_type -> nodeserver.DeleteBlockRequest
+	11, // 10: nodeserver.Node.CopyBlock:input_type -> nodeserver.CopyBlockRequest
+	2,  // 11: nodeserver.Node.GetBlockInfos:output_type -> nodeserver.GetBlockInfosResponse
+	4,  // 12: nodeserver.Node.GetBlockInfo:output_type -> nodeserver.GetBlockInfoResponse
+	6,  // 13: nodeserver.Node.GetBlock:output_type -> nodeserver.GetBlockResponse
+	8,  // 14: nodeserver.Node.WriteBlock:output_type -> nodeserver.WriteBlockResponse
+	10, // 15: nodeserver.Node.DeleteBlock:output_type -> nodeserver.DeleteBlockResponse
+	12, // 16: nodeserver.Node.CopyBlock:output_type -> nodeserver.CopyBlockResponse
+	11, // [11:17] is the sub-list for method output_type
+	5,  // [5:11] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_nodeserver_proto_init() }

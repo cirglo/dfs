@@ -19,19 +19,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Node_GetBlockIds_FullMethodName  = "/nodeserver.Node/GetBlockIds"
-	Node_GetBlockInfo_FullMethodName = "/nodeserver.Node/GetBlockInfo"
-	Node_GetBlock_FullMethodName     = "/nodeserver.Node/GetBlock"
-	Node_WriteBlock_FullMethodName   = "/nodeserver.Node/WriteBlock"
-	Node_DeleteBlock_FullMethodName  = "/nodeserver.Node/DeleteBlock"
-	Node_CopyBlock_FullMethodName    = "/nodeserver.Node/CopyBlock"
+	Node_GetBlockInfos_FullMethodName = "/nodeserver.Node/GetBlockInfos"
+	Node_GetBlockInfo_FullMethodName  = "/nodeserver.Node/GetBlockInfo"
+	Node_GetBlock_FullMethodName      = "/nodeserver.Node/GetBlock"
+	Node_WriteBlock_FullMethodName    = "/nodeserver.Node/WriteBlock"
+	Node_DeleteBlock_FullMethodName   = "/nodeserver.Node/DeleteBlock"
+	Node_CopyBlock_FullMethodName     = "/nodeserver.Node/CopyBlock"
 )
 
 // NodeClient is the client API for Node service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NodeClient interface {
-	GetBlockIds(ctx context.Context, in *GetBlockIdsRequest, opts ...grpc.CallOption) (*GetBlockIdsResponse, error)
+	GetBlockInfos(ctx context.Context, in *GetBlockInfosRequest, opts ...grpc.CallOption) (*GetBlockInfosResponse, error)
 	GetBlockInfo(ctx context.Context, in *GetBlockInfoRequest, opts ...grpc.CallOption) (*GetBlockInfoResponse, error)
 	GetBlock(ctx context.Context, in *GetBlockRequest, opts ...grpc.CallOption) (*GetBlockResponse, error)
 	WriteBlock(ctx context.Context, in *WriteBlockRequest, opts ...grpc.CallOption) (*WriteBlockResponse, error)
@@ -47,10 +47,10 @@ func NewNodeClient(cc grpc.ClientConnInterface) NodeClient {
 	return &nodeClient{cc}
 }
 
-func (c *nodeClient) GetBlockIds(ctx context.Context, in *GetBlockIdsRequest, opts ...grpc.CallOption) (*GetBlockIdsResponse, error) {
+func (c *nodeClient) GetBlockInfos(ctx context.Context, in *GetBlockInfosRequest, opts ...grpc.CallOption) (*GetBlockInfosResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetBlockIdsResponse)
-	err := c.cc.Invoke(ctx, Node_GetBlockIds_FullMethodName, in, out, cOpts...)
+	out := new(GetBlockInfosResponse)
+	err := c.cc.Invoke(ctx, Node_GetBlockInfos_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (c *nodeClient) CopyBlock(ctx context.Context, in *CopyBlockRequest, opts .
 // All implementations must embed UnimplementedNodeServer
 // for forward compatibility.
 type NodeServer interface {
-	GetBlockIds(context.Context, *GetBlockIdsRequest) (*GetBlockIdsResponse, error)
+	GetBlockInfos(context.Context, *GetBlockInfosRequest) (*GetBlockInfosResponse, error)
 	GetBlockInfo(context.Context, *GetBlockInfoRequest) (*GetBlockInfoResponse, error)
 	GetBlock(context.Context, *GetBlockRequest) (*GetBlockResponse, error)
 	WriteBlock(context.Context, *WriteBlockRequest) (*WriteBlockResponse, error)
@@ -127,8 +127,8 @@ type NodeServer interface {
 // pointer dereference when methods are called.
 type UnimplementedNodeServer struct{}
 
-func (UnimplementedNodeServer) GetBlockIds(context.Context, *GetBlockIdsRequest) (*GetBlockIdsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBlockIds not implemented")
+func (UnimplementedNodeServer) GetBlockInfos(context.Context, *GetBlockInfosRequest) (*GetBlockInfosResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBlockInfos not implemented")
 }
 func (UnimplementedNodeServer) GetBlockInfo(context.Context, *GetBlockInfoRequest) (*GetBlockInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlockInfo not implemented")
@@ -166,20 +166,20 @@ func RegisterNodeServer(s grpc.ServiceRegistrar, srv NodeServer) {
 	s.RegisterService(&Node_ServiceDesc, srv)
 }
 
-func _Node_GetBlockIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetBlockIdsRequest)
+func _Node_GetBlockInfos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBlockInfosRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NodeServer).GetBlockIds(ctx, in)
+		return srv.(NodeServer).GetBlockInfos(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Node_GetBlockIds_FullMethodName,
+		FullMethod: Node_GetBlockInfos_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodeServer).GetBlockIds(ctx, req.(*GetBlockIdsRequest))
+		return srv.(NodeServer).GetBlockInfos(ctx, req.(*GetBlockInfosRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -282,8 +282,8 @@ var Node_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*NodeServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetBlockIds",
-			Handler:    _Node_GetBlockIds_Handler,
+			MethodName: "GetBlockInfos",
+			Handler:    _Node_GetBlockInfos_Handler,
 		},
 		{
 			MethodName: "GetBlockInfo",

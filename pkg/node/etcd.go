@@ -2,7 +2,9 @@ package node
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/cirglo.com/dfs/pkg/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"time"
 )
@@ -21,6 +23,8 @@ type EtcdOpts struct {
 	Client         *clientv3.Client
 	ID             string
 	Host           string
+	Port           uint16
+	Location       string
 	LeaseDuration  time.Duration
 	ContextFactory ContextFactory
 }
@@ -42,14 +46,14 @@ func NewEtcd(opts EtcdOpts) (Etcd, error) {
 		return nil, fmt.Errorf("context factory cannot be nil")
 	}
 
-	return &etcd{opts: opts}, nil
+	return &etcdImpl{opts: opts}, nil
 }
 
-type etcd struct {
+type etcdImpl struct {
 	opts EtcdOpts
 }
 
-func (e *etcd) Report() error {
+func (e *etcdImpl) Report() error {
 	ctx, cancel := e.opts.ContextFactory()
 	defer cancel()
 	ttl := e.opts.LeaseDuration.Seconds()
@@ -58,8 +62,19 @@ func (e *etcd) Report() error {
 		return fmt.Errorf("grant failed: %w", err)
 	}
 
-	name := fmt.Sprintf(nameFormat, e.opts.ID)
-	_, err = e.opts.Client.Put(ctx, name, e.opts.Host, clientv3.WithLease(gresp.ID))
+	name := fmt.Sprintf(etcd.NameKeyFormat, e.opts.ID)
+	nodeInfo := etcd.NodeInfo{
+		ID:       e.opts.ID,
+		Host:     e.opts.Host,
+		Port:     e.opts.Port,
+		Location: e.opts.Location,
+	}
+	b, err := json.Marshal(nodeInfo)
+	if err != nil {
+		return fmt.Errorf("marshal failed: %w", err)
+	}
+
+	_, err = e.opts.Client.Put(ctx, name, string(b), clientv3.WithLease(gresp.ID))
 	if err != nil {
 		return fmt.Errorf("put failed: %w", err)
 	}

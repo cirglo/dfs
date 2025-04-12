@@ -12,7 +12,7 @@ import (
 )
 
 type User struct {
-	ID             uint
+	ID             uint64
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	Name           string   `gorm:"uniqueIndex"`
@@ -21,7 +21,7 @@ type User struct {
 }
 
 type Group struct {
-	ID        uint
+	ID        uint64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Name      string  `gorm:"uniqueIndex"`
@@ -29,7 +29,7 @@ type Group struct {
 }
 
 type Token struct {
-	ID        uint
+	ID        uint64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	ExpiresAt time.Time
@@ -336,7 +336,7 @@ func (s *securityService) AuthenticateUser(userName string, password string) (st
 		}
 
 		// Generate a token
-		tokenBytes := make([]byte, 128)
+		tokenBytes := make([]byte, 1024)
 		_, err := rand.Read(tokenBytes)
 		if err != nil {
 			return fmt.Errorf("could not create token: %w", err)

@@ -3,6 +3,7 @@ module github.com/cirglo.com/dfs
 go 1.24
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/sirupsen/logrus v1.9.3
 	go.etcd.io/etcd/client/v3 v3.5.21
 	google.golang.org/grpc v1.71.0

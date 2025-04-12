@@ -31,14 +31,26 @@ func NewServer(opts ServerOpts) (proto.NodeServer, error) {
 	}, nil
 }
 
-func (s server) GetBlockIds(ctx context.Context, request *proto.GetBlockIdsRequest) (*proto.GetBlockIdsResponse, error) {
-	bids, err := s.opts.Service.GetBlockIds()
+func (s server) GetBlockInfos(ctx context.Context, request *proto.GetBlockInfosRequest) (*proto.GetBlockInfosResponse, error) {
+	bis, err := s.opts.Service.GetBlocks()
 	if err != nil {
 		return nil, err
 	}
 
-	return &proto.GetBlockIdsResponse{Ids: bids}, nil
+	blockInfos := []*proto.BlockInfo{}
 
+	for _, bi := range bis {
+		blockInfo := &proto.BlockInfo{
+			BlockId:  bi.ID,
+			Crc:      bi.CRC,
+			Sequence: bi.Sequence,
+			Length:   bi.Length,
+		}
+
+		blockInfos = append(blockInfos, blockInfo)
+	}
+
+	return &proto.GetBlockInfosResponse{BlockInfos: blockInfos}, nil
 }
 
 func (s server) GetBlockInfo(ctx context.Context, request *proto.GetBlockInfoRequest) (*proto.GetBlockInfoResponse, error) {
@@ -51,7 +63,6 @@ func (s server) GetBlockInfo(ctx context.Context, request *proto.GetBlockInfoReq
 		if bi.ID == request.GetId() {
 			return &proto.GetBlockInfoResponse{BlockInfo: &proto.BlockInfo{
 				BlockId:  bi.ID,
-				FileId:   "",
 				Crc:      bi.CRC,
 				Sequence: bi.Sequence,
 				Length:   bi.Length,
@@ -73,7 +84,6 @@ func (s server) GetBlock(ctx context.Context, request *proto.GetBlockRequest) (*
 		Data: b,
 		BlockInfo: &proto.BlockInfo{
 			BlockId:  bi.ID,
-			FileId:   "",
 			Crc:      bi.CRC,
 			Sequence: bi.Sequence,
 			Length:   bi.Length,
@@ -97,7 +107,6 @@ func (s server) WriteBlock(ctx context.Context, request *proto.WriteBlockRequest
 
 	return &proto.WriteBlockResponse{BlockInfo: &proto.BlockInfo{
 		BlockId:  request.GetBlockInfo().GetBlockId(),
-		FileId:   request.GetBlockInfo().GetFileId(),
 		Crc:      request.GetBlockInfo().GetCrc(),
 		Sequence: request.GetBlockInfo().GetSequence(),
 		Length:   request.GetBlockInfo().GetLength(),
