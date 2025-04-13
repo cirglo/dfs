@@ -13,6 +13,7 @@ build:
 
 docker:
 	docker build -t nodeserver:latest -f docker/nodeserver.dockerfile .
+	docker build -t nameserver:latest -f docker/nameserver.dockerfile .
 
 # Clean up build artifacts
 clean:
