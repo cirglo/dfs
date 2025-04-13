@@ -14,7 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Service interface {
+type BlockService interface {
 	GetBlockIds() ([]string, error)
 	GetBlocks() ([]BlockInfo, error)
 	WriteBlock(id string, path string, sequence uint64, data []byte) error
@@ -33,7 +33,7 @@ type BlockInfo struct {
 	DataFilePath string `gorm:"column:data_file_path;not null"`
 	CRC          uint32 `gorm:"column:crc;not null"`
 }
-type ServiceOpts struct {
+type BlockServiceOpts struct {
 	Logger     *logrus.Logger
 	Host       string
 	DB         *gorm.DB
@@ -41,7 +41,7 @@ type ServiceOpts struct {
 	NameClient proto.NameInternalClient
 }
 
-func (o *ServiceOpts) Validate() error {
+func (o *BlockServiceOpts) Validate() error {
 	if o.Logger == nil {
 		return fmt.Errorf("logger is required")
 	}
@@ -71,10 +71,10 @@ func (o *ServiceOpts) Validate() error {
 }
 
 type service struct {
-	opts ServiceOpts
+	opts BlockServiceOpts
 }
 
-func NewService(opts ServiceOpts) (Service, error) {
+func NewBlockService(opts BlockServiceOpts) (BlockService, error) {
 	err := opts.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("options are not valid: %w", err)
@@ -220,7 +220,7 @@ func (s *service) ReadBlock(id string) ([]byte, BlockInfo, error) {
 	var data []byte
 	var blockInfo BlockInfo
 	err := s.opts.DB.Transaction(func(tx *gorm.DB) error {
-		err := tx.Model(&blockInfo).Where("id = ?", id).Error
+		err := tx.Where("id = ?", id).First(&blockInfo).Error
 		if err != nil {
 			return fmt.Errorf("failed to get block info: %w", err)
 		}
@@ -233,7 +233,7 @@ func (s *service) ReadBlock(id string) ([]byte, BlockInfo, error) {
 
 	data, err = os.ReadFile(blockInfo.DataFilePath)
 	if err != nil {
-		return nil, blockInfo, fmt.Errorf("failed to read data file: %w", err)
+		return nil, blockInfo, fmt.Errorf("failed to read data file %s: %w", blockInfo.DataFilePath, err)
 	}
 
 	if blockInfo.CRC != crc32.ChecksumIEEE(data) {

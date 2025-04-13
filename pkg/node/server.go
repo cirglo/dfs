@@ -10,7 +10,7 @@ import (
 
 type ServerOpts struct {
 	Logger                  *logrus.Logger
-	Service                 Service
+	BlockService            BlockService
 	ClientConnectionFactory func(destination string) (*grpc.ClientConn, error)
 }
 
@@ -18,7 +18,7 @@ func (s ServerOpts) Validate() error {
 	if s.Logger == nil {
 		return fmt.Errorf("no logger provided")
 	}
-	if s.Service == nil {
+	if s.BlockService == nil {
 		return fmt.Errorf("no service provided")
 	}
 	if s.ClientConnectionFactory == nil {
@@ -45,7 +45,7 @@ func NewServer(opts ServerOpts) (proto.NodeServer, error) {
 }
 
 func (s *server) GetBlockInfos(ctx context.Context, _ *proto.GetBlockInfosRequest) (*proto.GetBlockInfosResponse, error) {
-	bis, err := s.opts.Service.GetBlocks()
+	bis, err := s.opts.BlockService.GetBlocks()
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (s *server) GetBlockInfos(ctx context.Context, _ *proto.GetBlockInfosReques
 }
 
 func (s *server) GetBlockInfo(ctx context.Context, request *proto.GetBlockInfoRequest) (*proto.GetBlockInfoResponse, error) {
-	bis, err := s.opts.Service.GetBlocks()
+	bis, err := s.opts.BlockService.GetBlocks()
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (s *server) GetBlockInfo(ctx context.Context, request *proto.GetBlockInfoRe
 }
 
 func (s *server) GetBlock(ctx context.Context, request *proto.GetBlockRequest) (*proto.GetBlockResponse, error) {
-	b, bi, err := s.opts.Service.ReadBlock(request.GetId())
+	b, bi, err := s.opts.BlockService.ReadBlock(request.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (s *server) GetBlock(ctx context.Context, request *proto.GetBlockRequest) (
 }
 
 func (s *server) WriteBlock(ctx context.Context, request *proto.WriteBlockRequest) (*proto.WriteBlockResponse, error) {
-	err := s.opts.Service.WriteBlock(
+	err := s.opts.BlockService.WriteBlock(
 		request.GetId(),
 		request.GetPath(),
 		request.GetSequence(),
@@ -119,7 +119,7 @@ func (s *server) WriteBlock(ctx context.Context, request *proto.WriteBlockReques
 }
 
 func (s *server) DeleteBlock(ctx context.Context, request *proto.DeleteBlockRequest) (*proto.DeleteBlockResponse, error) {
-	err := s.opts.Service.DeleteBlock(request.GetId())
+	err := s.opts.BlockService.DeleteBlock(request.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (s *server) DeleteBlock(ctx context.Context, request *proto.DeleteBlockRequ
 }
 
 func (s *server) CopyBlock(ctx context.Context, request *proto.CopyBlockRequest) (*proto.CopyBlockResponse, error) {
-	data, blockInfo, err := s.opts.Service.ReadBlock(request.GetId())
+	data, blockInfo, err := s.opts.BlockService.ReadBlock(request.GetId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data for block id %s : %w", blockInfo.ID, err)
 	}
@@ -150,9 +150,4 @@ func (s *server) CopyBlock(ctx context.Context, request *proto.CopyBlockRequest)
 	}
 
 	return &proto.CopyBlockResponse{}, nil
-}
-
-func (s *server) mustEmbedUnimplementedNodeServer() {
-	//TODO implement me
-	panic("implement me")
 }

@@ -277,9 +277,9 @@ func (s *securityService) AddUserToGroup(userName string, groupName string) erro
 			return fmt.Errorf("user %s not found", userName)
 		}
 
-		tx.Model(&group).Association("Users").Append(&user)
-		if tx.Error != nil {
-			return fmt.Errorf("failed to add user to group: %w", tx.Error)
+		err := tx.Model(&group).Association("Users").Append(&user)
+		if err != nil {
+			return fmt.Errorf("failed to add user to group: %w", err)
 		}
 
 		return nil
@@ -307,9 +307,9 @@ func (s *securityService) RemoveUserFromGroup(userName string, groupName string)
 			return fmt.Errorf("user %s not found", userName)
 		}
 
-		tx.Model(&group).Association("Users").Delete(&user)
-		if tx.Error != nil {
-			return fmt.Errorf("failed to remove user from group: %w", tx.Error)
+		err := tx.Model(&group).Association("Users").Delete(&user)
+		if err != nil {
+			return fmt.Errorf("failed to remove user from group: %w", err)
 		}
 
 		return nil

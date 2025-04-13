@@ -63,7 +63,3 @@ func (i InternalServer) NotifyBlocksRemoved(ctx context.Context, report *proto.B
 	fmt.Println("NotifyBlocksRemoved not implemented")
 	return &proto.BlockInfoReportResponse{}, nil
 }
-
-func (i InternalServer) mustEmbedUnimplementedNameInternalServer() {
-	fmt.Println("mustEmbedUnimplementedNameInternalServer()")
-}

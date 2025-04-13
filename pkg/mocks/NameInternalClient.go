@@ -17,6 +17,14 @@ type NameInternalClient struct {
 	mock.Mock
 }
 
+type NameInternalClient_Expecter struct {
+	mock *mock.Mock
+}
+
+func (_m *NameInternalClient) EXPECT() *NameInternalClient_Expecter {
+	return &NameInternalClient_Expecter{mock: &_m.Mock}
+}
+
 // NotifyBlocksAdded provides a mock function with given fields: ctx, in, opts
 func (_m *NameInternalClient) NotifyBlocksAdded(ctx context.Context, in *proto.BlockInfoReport, opts ...grpc.CallOption) (*proto.BlockInfoReportResponse, error) {
 	_va := make([]interface{}, len(opts))
@@ -52,6 +60,43 @@ func (_m *NameInternalClient) NotifyBlocksAdded(ctx context.Context, in *proto.B
 	}
 
 	return r0, r1
+}
+
+// NameInternalClient_NotifyBlocksAdded_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NotifyBlocksAdded'
+type NameInternalClient_NotifyBlocksAdded_Call struct {
+	*mock.Call
+}
+
+// NotifyBlocksAdded is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *proto.BlockInfoReport
+//   - opts ...grpc.CallOption
+func (_e *NameInternalClient_Expecter) NotifyBlocksAdded(ctx interface{}, in interface{}, opts ...interface{}) *NameInternalClient_NotifyBlocksAdded_Call {
+	return &NameInternalClient_NotifyBlocksAdded_Call{Call: _e.mock.On("NotifyBlocksAdded",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *NameInternalClient_NotifyBlocksAdded_Call) Run(run func(ctx context.Context, in *proto.BlockInfoReport, opts ...grpc.CallOption)) *NameInternalClient_NotifyBlocksAdded_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*proto.BlockInfoReport), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *NameInternalClient_NotifyBlocksAdded_Call) Return(_a0 *proto.BlockInfoReportResponse, _a1 error) *NameInternalClient_NotifyBlocksAdded_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *NameInternalClient_NotifyBlocksAdded_Call) RunAndReturn(run func(context.Context, *proto.BlockInfoReport, ...grpc.CallOption) (*proto.BlockInfoReportResponse, error)) *NameInternalClient_NotifyBlocksAdded_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // NotifyBlocksRemoved provides a mock function with given fields: ctx, in, opts
@@ -91,6 +136,43 @@ func (_m *NameInternalClient) NotifyBlocksRemoved(ctx context.Context, in *proto
 	return r0, r1
 }
 
+// NameInternalClient_NotifyBlocksRemoved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NotifyBlocksRemoved'
+type NameInternalClient_NotifyBlocksRemoved_Call struct {
+	*mock.Call
+}
+
+// NotifyBlocksRemoved is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *proto.BlockInfoReport
+//   - opts ...grpc.CallOption
+func (_e *NameInternalClient_Expecter) NotifyBlocksRemoved(ctx interface{}, in interface{}, opts ...interface{}) *NameInternalClient_NotifyBlocksRemoved_Call {
+	return &NameInternalClient_NotifyBlocksRemoved_Call{Call: _e.mock.On("NotifyBlocksRemoved",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *NameInternalClient_NotifyBlocksRemoved_Call) Run(run func(ctx context.Context, in *proto.BlockInfoReport, opts ...grpc.CallOption)) *NameInternalClient_NotifyBlocksRemoved_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*proto.BlockInfoReport), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *NameInternalClient_NotifyBlocksRemoved_Call) Return(_a0 *proto.BlockInfoReportResponse, _a1 error) *NameInternalClient_NotifyBlocksRemoved_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *NameInternalClient_NotifyBlocksRemoved_Call) RunAndReturn(run func(context.Context, *proto.BlockInfoReport, ...grpc.CallOption) (*proto.BlockInfoReportResponse, error)) *NameInternalClient_NotifyBlocksRemoved_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReportExistingBlocks provides a mock function with given fields: ctx, in, opts
 func (_m *NameInternalClient) ReportExistingBlocks(ctx context.Context, in *proto.BlockInfoReport, opts ...grpc.CallOption) (*proto.BlockInfoReportResponse, error) {
 	_va := make([]interface{}, len(opts))
@@ -126,6 +208,43 @@ func (_m *NameInternalClient) ReportExistingBlocks(ctx context.Context, in *prot
 	}
 
 	return r0, r1
+}
+
+// NameInternalClient_ReportExistingBlocks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReportExistingBlocks'
+type NameInternalClient_ReportExistingBlocks_Call struct {
+	*mock.Call
+}
+
+// ReportExistingBlocks is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *proto.BlockInfoReport
+//   - opts ...grpc.CallOption
+func (_e *NameInternalClient_Expecter) ReportExistingBlocks(ctx interface{}, in interface{}, opts ...interface{}) *NameInternalClient_ReportExistingBlocks_Call {
+	return &NameInternalClient_ReportExistingBlocks_Call{Call: _e.mock.On("ReportExistingBlocks",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *NameInternalClient_ReportExistingBlocks_Call) Run(run func(ctx context.Context, in *proto.BlockInfoReport, opts ...grpc.CallOption)) *NameInternalClient_ReportExistingBlocks_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*proto.BlockInfoReport), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *NameInternalClient_ReportExistingBlocks_Call) Return(_a0 *proto.BlockInfoReportResponse, _a1 error) *NameInternalClient_ReportExistingBlocks_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *NameInternalClient_ReportExistingBlocks_Call) RunAndReturn(run func(context.Context, *proto.BlockInfoReport, ...grpc.CallOption) (*proto.BlockInfoReportResponse, error)) *NameInternalClient_ReportExistingBlocks_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // NewNameInternalClient creates a new instance of NameInternalClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

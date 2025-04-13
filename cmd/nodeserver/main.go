@@ -56,7 +56,7 @@ func main() {
 	}
 	client := proto.NewNameInternalClient(conn)
 
-	serviceOpts := node.ServiceOpts{
+	serviceOpts := node.BlockServiceOpts{
 		Logger:     log,
 		Host:       *hostFlag,
 		DB:         db,
@@ -64,22 +64,22 @@ func main() {
 		NameClient: client,
 	}
 
-	log.Info("Creating node service")
-	nodeService, err := node.NewService(serviceOpts)
+	log.Info("Creating block service")
+	blockService, err := node.NewBlockService(serviceOpts)
 	if err != nil {
-		log.WithError(err).Fatal("Failed to create node service")
+		log.WithError(err).Fatal("Failed to create block service")
 	}
 
 	log.Info("Reporting to name node")
-	err = nodeService.Report()
+	err = blockService.Report()
 	if err != nil {
 		log.WithError(err).Fatal("Failed to report to name node")
 	}
 
 	log.Info("Creating server")
 	nodeServer, err := node.NewServer(node.ServerOpts{
-		Logger:  log,
-		Service: nodeService,
+		Logger:       log,
+		BlockService: blockService,
 		ClientConnectionFactory: func(destination string) (*grpc.ClientConn, error) {
 			return grpc.NewClient(destination, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
@@ -107,7 +107,7 @@ func main() {
 		ticker := time.NewTicker(*reportIntervalFlag)
 		for range ticker.C {
 			log.Info("Report to name node")
-			err := nodeService.Report()
+			err := blockService.Report()
 			if err != nil {
 				log.WithError(err).Fatal("report to name node failed")
 			}
@@ -119,7 +119,7 @@ func main() {
 		ticker := time.NewTicker(*healthCheckIntervalFlag)
 		for range ticker.C {
 			log.Info("Performing health check")
-			err := nodeService.HealthCheck()
+			err := blockService.HealthCheck()
 			if err != nil {
 				log.WithError(err).Fatal("health check failed")
 			}
@@ -131,7 +131,7 @@ func main() {
 		ticker := time.NewTicker(*crcCheckIntervalFlag)
 		for range ticker.C {
 			log.Info("Validating CRC")
-			err := nodeService.ValidateCRC()
+			err := blockService.ValidateCRC()
 			if err != nil {
 				log.WithError(err).Fatal("validate CRC failed")
 			}
