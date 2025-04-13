@@ -1,34 +1,29 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"github.com/cirglo.com/dfs/pkg/node"
 	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/sirupsen/logrus"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"net"
 	"os"
-	"strings"
 	"time"
 )
 
 func main() {
 	logLevelFlag := flag.String("log-level", "info", "Log Level")
-	idFlag := flag.String("id", "default-id", "Node ID")
-	locationFlag := flag.String("location", "/", "Node Location")
+	nameNodeFlag := flag.String("name-node", "localhost:2379", "Name Node Address")
 	dirFlag := flag.String("dir", "./", "Node Directory")
-	portFlag := flag.Int("port", 50051, "Node Port")
-	healthCheckIntervalFlag := flag.Duration("health-check-interval", 1*time.Minute, "Health Check Interval")
+	dsnFlag := flag.String("dsn", "nodeserver.db", "Data Source Name (DSN) for the database")
+	hostFlag := flag.String("host", "localhost:50051", "Node Host")
+	reportIntervalFlag := flag.Duration("report-interval", 10*time.Minute, "Report Interval")
+	healthCheckIntervalFlag := flag.Duration("health-check-interval", 1*time.Hour, "Health Check Interval")
 	crcCheckIntervalFlag := flag.Duration("crc-check-interval", 24*time.Hour, "CRC Check Interval")
-	leaseDurationFlag := flag.Duration("lease-duration", 2*time.Minute, "Lease Duration")
-	etcdIntervalFlag := flag.Duration("etcd-interval", 1*time.Minute, "ETCD Interval")
-	etcdTimeoutFlag := flag.Duration("etcd-timeout", 5*time.Second, "ETCD Timeout")
-	etcdEndpointsFlag := flag.String("etcd-endpoints", "localhost:2379", "ETCD Endpoints")
-	etcdUsernameFlag := flag.String("etcd-username", "", "ETCD Username")
-	etcPasswordFlag := flag.String("etcd-password", "", "ETCD Password")
 
 	flag.Parse()
 
@@ -45,48 +40,23 @@ func main() {
 		log.WithError(err).WithField("dir", *dirFlag).Fatal("Directory does not exist")
 	}
 
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints: strings.Split(*etcdEndpointsFlag, ","),
-		Username:  *etcdUsernameFlag,
-		Password:  *etcPasswordFlag,
-	})
+	db, err := createDB(sqlite.Open(*dsnFlag))
 	if err != nil {
-		log.WithError(err).Fatal("Failed to create etcd client")
+		log.WithError(err).Fatal("Failed to create database")
 	}
-
-	etcdOpts := node.EtcdOpts{
-		ID:            *idFlag,
-		Host:          "localhost:2379",
-		LeaseDuration: *leaseDurationFlag,
-		ContextFactory: func() (context.Context, context.CancelFunc) {
-			return context.WithTimeout(context.Background(), *etcdTimeoutFlag)
-		},
-		Client: client,
-	}
-
-	etcd, err := node.NewEtcd(etcdOpts)
-	if err != nil {
-		log.WithError(err).Fatal("Failed to create etcd client")
-	}
-
-	go func() {
-		ticker := time.NewTicker(*etcdIntervalFlag)
-		defer ticker.Stop()
-		for range ticker.C {
-			err := etcd.Report()
-			if err != nil {
-				log.WithError(err).Fatal("Failed to report to etcd")
-			} else {
-				log.Info("Reported to etcd successfully")
-			}
-		}
-	}()
 
 	serviceOpts := node.ServiceOpts{
-		Logger:              log,
-		ID:                  *idFlag,
-		Location:            *locationFlag,
-		Dir:                 dir,
+		Logger:       log,
+		Host:         *hostFlag,
+		NameNodeHost: *nameNodeFlag,
+		DB:           db,
+		Dir:          dir,
+		ClientConnectionFactory: func(destination string) (*grpc.ClientConn, error) {
+			return grpc.NewClient(
+				destination,
+				grpc.WithTransportCredentials(insecure.NewCredentials()))
+		},
+		ReportInterval:      *reportIntervalFlag,
 		HealthCheckInterval: *healthCheckIntervalFlag,
 		ValidateCRCInterval: *crcCheckIntervalFlag,
 	}
@@ -104,16 +74,31 @@ func main() {
 		log.WithError(err).Fatal("Failed to create server")
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", *portFlag))
+	listener, err := net.Listen("tcp", *hostFlag)
 	if err != nil {
-		log.WithError(err).WithField("port", *portFlag).Fatal("Failed to listen")
+		log.WithError(err).Fatal("Failed to listen")
 	}
 
 	grpcServer := grpc.NewServer()
 	proto.RegisterNodeServer(grpcServer, nodeServer)
 
-	log.WithField("port", *portFlag).Infof("Starting server")
 	if err := grpcServer.Serve(listener); err != nil {
 		log.WithError(err).Fatal("Failed to serve gRPC server")
 	}
+}
+
+func createDB(dialector gorm.Dialector) (*gorm.DB, error) {
+	db, err := gorm.Open(dialector, &gorm.Config{
+		SkipDefaultTransaction:   true,
+		DisableNestedTransaction: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not open database: %w", err)
+	}
+	err = db.AutoMigrate(node.BlockInfo{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to auto migrate: %w", err)
+	}
+
+	return db, nil
 }

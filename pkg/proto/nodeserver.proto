@@ -5,7 +5,7 @@ package nodeserver;
 option go_package = "./;proto";
 
 service Node {
-  rpc GetBlockIds(GetBlockIdsRequest) returns (GetBlockIdsResponse);
+  rpc GetBlockInfos(GetBlockInfosRequest) returns (GetBlockInfosResponse);
   rpc GetBlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse);
   rpc GetBlock(GetBlockRequest) returns (GetBlockResponse);
   rpc WriteBlock(WriteBlockRequest) returns (WriteBlockResponse);
@@ -16,20 +16,19 @@ service Node {
 
 message BlockInfo {
   string blockId = 1;
-  string fileId = 2;
-  uint32 crc = 3;
-  uint64 sequence = 4;
-  uint32 length = 5;
-  string path = 6;
+  uint32 crc = 2;
+  uint64 sequence = 3;
+  uint32 length = 4;
+  string path = 5;
 }
 
 // Define a User message
-message GetBlockIdsRequest {
+message GetBlockInfosRequest {
 
 }
 
-message GetBlockIdsResponse {
-  repeated string ids = 1;
+message GetBlockInfosResponse {
+  repeated BlockInfo blockInfos = 1;
 }
 
 
@@ -64,12 +63,11 @@ message DeleteBlockRequest {
 }
 
 message DeleteBlockResponse {
-  string id = 1;
 }
 
 message CopyBlockRequest {
   string id = 1;
-  string destinationUrl = 2;
+  string destination = 2;
 }
 
 message CopyBlockResponse {

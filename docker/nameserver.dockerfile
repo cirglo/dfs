@@ -1,0 +1,30 @@
+# Use the official Golang image as the base image
+FROM golang:1.24.1-alpine3.21 AS builder
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy the go.mod and go.sum files to the working directory
+COPY go.mod go.sum ./
+
+# Download the Go modules
+RUN go mod download
+
+# Copy the source code to the working directory
+COPY . ./
+
+# Build the Go application
+RUN mkdir -p build
+RUN CGO_ENABLED=1 GOOS=linux go build -o build ./cmd/nameserver/... ./pkg/... ./vendor/...
+
+
+FROM alpine:3.21.3 AS runtime
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy the built executable from the builder stage
+COPY --from=builder /app/build/nameserver ./nameserver
+
+# Command to run the executable
+CMD ["/app/nameserver"]

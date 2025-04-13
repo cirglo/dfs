@@ -19,30 +19,28 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Name_CreateFile_FullMethodName   = "/nameserver.Name/CreateFile"
-	Name_CreateDir_FullMethodName    = "/nameserver.Name/CreateDir"
-	Name_DeleteFile_FullMethodName   = "/nameserver.Name/DeleteFile"
-	Name_DeleteDir_FullMethodName    = "/nameserver.Name/DeleteDir"
-	Name_ListDir_FullMethodName      = "/nameserver.Name/ListDir"
-	Name_StatFile_FullMethodName     = "/nameserver.Name/StatFile"
-	Name_OpenFile_FullMethodName     = "/nameserver.Name/OpenFile"
-	Name_CloseFile_FullMethodName    = "/nameserver.Name/CloseFile"
-	Name_PrepareWrite_FullMethodName = "/nameserver.Name/PrepareWrite"
+	Name_Login_FullMethodName      = "/nameserver.Name/Login"
+	Name_Logout_FullMethodName     = "/nameserver.Name/Logout"
+	Name_CreateFile_FullMethodName = "/nameserver.Name/CreateFile"
+	Name_CreateDir_FullMethodName  = "/nameserver.Name/CreateDir"
+	Name_DeleteFile_FullMethodName = "/nameserver.Name/DeleteFile"
+	Name_DeleteDir_FullMethodName  = "/nameserver.Name/DeleteDir"
+	Name_ListDir_FullMethodName    = "/nameserver.Name/ListDir"
+	Name_StatFile_FullMethodName   = "/nameserver.Name/StatFile"
 )
 
 // NameClient is the client API for Name service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NameClient interface {
+	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 	CreateFile(ctx context.Context, in *CreateFileRequest, opts ...grpc.CallOption) (*CreateFileResponse, error)
 	CreateDir(ctx context.Context, in *CreateDirRequest, opts ...grpc.CallOption) (*CreateDirResponse, error)
 	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
 	DeleteDir(ctx context.Context, in *DeleteDirRequest, opts ...grpc.CallOption) (*DeleteDirResponse, error)
 	ListDir(ctx context.Context, in *ListDirRequest, opts ...grpc.CallOption) (*ListDirResponse, error)
 	StatFile(ctx context.Context, in *StatFileRequest, opts ...grpc.CallOption) (*StatFileResponse, error)
-	OpenFile(ctx context.Context, in *OpenFileRequest, opts ...grpc.CallOption) (*OpenFileResponse, error)
-	CloseFile(ctx context.Context, in *CloseFileRequest, opts ...grpc.CallOption) (*CloseFileResponse, error)
-	PrepareWrite(ctx context.Context, in *PrepareWriteRequest, opts ...grpc.CallOption) (*PrepareWriteResponse, error)
 }
 
 type nameClient struct {
@@ -51,6 +49,26 @@ type nameClient struct {
 
 func NewNameClient(cc grpc.ClientConnInterface) NameClient {
 	return &nameClient{cc}
+}
+
+func (c *nameClient) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LoginResponse)
+	err := c.cc.Invoke(ctx, Name_Login_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nameClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogoutResponse)
+	err := c.cc.Invoke(ctx, Name_Logout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *nameClient) CreateFile(ctx context.Context, in *CreateFileRequest, opts ...grpc.CallOption) (*CreateFileResponse, error) {
@@ -113,49 +131,18 @@ func (c *nameClient) StatFile(ctx context.Context, in *StatFileRequest, opts ...
 	return out, nil
 }
 
-func (c *nameClient) OpenFile(ctx context.Context, in *OpenFileRequest, opts ...grpc.CallOption) (*OpenFileResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OpenFileResponse)
-	err := c.cc.Invoke(ctx, Name_OpenFile_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *nameClient) CloseFile(ctx context.Context, in *CloseFileRequest, opts ...grpc.CallOption) (*CloseFileResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CloseFileResponse)
-	err := c.cc.Invoke(ctx, Name_CloseFile_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *nameClient) PrepareWrite(ctx context.Context, in *PrepareWriteRequest, opts ...grpc.CallOption) (*PrepareWriteResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(PrepareWriteResponse)
-	err := c.cc.Invoke(ctx, Name_PrepareWrite_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // NameServer is the server API for Name service.
 // All implementations must embed UnimplementedNameServer
 // for forward compatibility.
 type NameServer interface {
+	Login(context.Context, *LoginRequest) (*LoginResponse, error)
+	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	CreateFile(context.Context, *CreateFileRequest) (*CreateFileResponse, error)
 	CreateDir(context.Context, *CreateDirRequest) (*CreateDirResponse, error)
 	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
 	DeleteDir(context.Context, *DeleteDirRequest) (*DeleteDirResponse, error)
 	ListDir(context.Context, *ListDirRequest) (*ListDirResponse, error)
 	StatFile(context.Context, *StatFileRequest) (*StatFileResponse, error)
-	OpenFile(context.Context, *OpenFileRequest) (*OpenFileResponse, error)
-	CloseFile(context.Context, *CloseFileRequest) (*CloseFileResponse, error)
-	PrepareWrite(context.Context, *PrepareWriteRequest) (*PrepareWriteResponse, error)
 	mustEmbedUnimplementedNameServer()
 }
 
@@ -166,6 +153,12 @@ type NameServer interface {
 // pointer dereference when methods are called.
 type UnimplementedNameServer struct{}
 
+func (UnimplementedNameServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
+}
+func (UnimplementedNameServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
+}
 func (UnimplementedNameServer) CreateFile(context.Context, *CreateFileRequest) (*CreateFileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateFile not implemented")
 }
@@ -183,15 +176,6 @@ func (UnimplementedNameServer) ListDir(context.Context, *ListDirRequest) (*ListD
 }
 func (UnimplementedNameServer) StatFile(context.Context, *StatFileRequest) (*StatFileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StatFile not implemented")
-}
-func (UnimplementedNameServer) OpenFile(context.Context, *OpenFileRequest) (*OpenFileResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method OpenFile not implemented")
-}
-func (UnimplementedNameServer) CloseFile(context.Context, *CloseFileRequest) (*CloseFileResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CloseFile not implemented")
-}
-func (UnimplementedNameServer) PrepareWrite(context.Context, *PrepareWriteRequest) (*PrepareWriteResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PrepareWrite not implemented")
 }
 func (UnimplementedNameServer) mustEmbedUnimplementedNameServer() {}
 func (UnimplementedNameServer) testEmbeddedByValue()              {}
@@ -212,6 +196,42 @@ func RegisterNameServer(s grpc.ServiceRegistrar, srv NameServer) {
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&Name_ServiceDesc, srv)
+}
+
+func _Name_Login_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NameServer).Login(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Name_Login_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NameServer).Login(ctx, req.(*LoginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Name_Logout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NameServer).Logout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Name_Logout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NameServer).Logout(ctx, req.(*LogoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Name_CreateFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -322,60 +342,6 @@ func _Name_StatFile_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Name_OpenFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OpenFileRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NameServer).OpenFile(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Name_OpenFile_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NameServer).OpenFile(ctx, req.(*OpenFileRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Name_CloseFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CloseFileRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NameServer).CloseFile(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Name_CloseFile_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NameServer).CloseFile(ctx, req.(*CloseFileRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Name_PrepareWrite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PrepareWriteRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NameServer).PrepareWrite(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Name_PrepareWrite_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NameServer).PrepareWrite(ctx, req.(*PrepareWriteRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Name_ServiceDesc is the grpc.ServiceDesc for Name service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -383,6 +349,14 @@ var Name_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "nameserver.Name",
 	HandlerType: (*NameServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Login",
+			Handler:    _Name_Login_Handler,
+		},
+		{
+			MethodName: "Logout",
+			Handler:    _Name_Logout_Handler,
+		},
 		{
 			MethodName: "CreateFile",
 			Handler:    _Name_CreateFile_Handler,
@@ -406,18 +380,6 @@ var Name_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StatFile",
 			Handler:    _Name_StatFile_Handler,
-		},
-		{
-			MethodName: "OpenFile",
-			Handler:    _Name_OpenFile_Handler,
-		},
-		{
-			MethodName: "CloseFile",
-			Handler:    _Name_CloseFile_Handler,
-		},
-		{
-			MethodName: "PrepareWrite",
-			Handler:    _Name_PrepareWrite_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

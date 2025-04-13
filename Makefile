@@ -1,11 +1,15 @@
 .PHONY: all build docker clean fmt run deps vet lint test
 
+
+export CGO_ENABLED=1
+
 # Default target
 all: build
 
 # Build the binary
 build:
 	go build -o build ./cmd/nodeserver/... ./pkg/... ./vendor/...
+	go build -o build ./cmd/nameserver/... ./pkg/... ./vendor/...
 
 docker:
 	docker build -t nodeserver:latest -f docker/nodeserver.dockerfile .

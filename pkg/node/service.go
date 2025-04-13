@@ -1,16 +1,20 @@
 package node
 
 import (
-	"encoding/json"
+	"context"
+	"database/sql"
 	"fmt"
+	"github.com/cirglo.com/dfs/pkg/proto"
+	"google.golang.org/grpc"
+	"gorm.io/gorm"
 	"hash/crc32"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,20 +27,23 @@ type Service interface {
 }
 
 type BlockInfo struct {
-	ID       string `json:"id"`
-	Sequence uint64 `json:"sequence"`
-	Length   uint32 `json:"length"`
-	Path     string `json:"path"`
-	CRC      uint32 `json:"crc"`
+	ID           string `gorm:"primaryKey; not null"`
+	Sequence     uint64 `gorm:"not null;uniqueIndex:idx_block_info'"`
+	Length       uint32 `gorm:"not null;"`
+	Path         string `gorm:"not null;not empty;"`
+	DataFilePath string `gorm:"not null;uniqueIndex:idx_block_info;"`
+	CRC          uint32 `gorm:"not null;"`
 }
-
 type ServiceOpts struct {
-	Logger              *logrus.Logger
-	ID                  string
-	Location            string
-	Dir                 fs.FileInfo
-	HealthCheckInterval time.Duration
-	ValidateCRCInterval time.Duration
+	Logger                  *logrus.Logger
+	NameNodeHost            string
+	Host                    string
+	DB                      *gorm.DB
+	Dir                     fs.FileInfo
+	ClientConnectionFactory func(destination string) (*grpc.ClientConn, error)
+	ReportInterval          time.Duration
+	HealthCheckInterval     time.Duration
+	ValidateCRCInterval     time.Duration
 }
 
 func (o *ServiceOpts) Validate() error {
@@ -44,12 +51,8 @@ func (o *ServiceOpts) Validate() error {
 		return fmt.Errorf("logger is required")
 	}
 
-	if len(o.ID) == 0 {
-		return fmt.Errorf("id is required")
-	}
-
-	if len(o.Location) == 0 {
-		return fmt.Errorf("location is required")
+	if o.DB == nil {
+		return fmt.Errorf("db is required")
 	}
 
 	if o.Dir == nil {
@@ -60,14 +63,35 @@ func (o *ServiceOpts) Validate() error {
 		return fmt.Errorf("dir is not a directory: %s", o.Dir)
 	}
 
+	if o.NameNodeHost == "" {
+		return fmt.Errorf("name node host is required")
+	}
+
+	if o.Host == "" {
+		return fmt.Errorf("host is required")
+	}
+
+	if o.ReportInterval == 0 {
+		return fmt.Errorf("report interval is required")
+	}
+
+	if o.HealthCheckInterval == 0 {
+		return fmt.Errorf("health check interval is required")
+	}
+
+	if o.ValidateCRCInterval == 0 {
+		return fmt.Errorf("validate CRC interval is required")
+	}
+
+	if o.ClientConnectionFactory == nil {
+		return fmt.Errorf("client connection factory is required")
+	}
+
 	return nil
 }
 
 type service struct {
-	opts       ServiceOpts
-	logEntry   *logrus.Entry
-	lock       sync.RWMutex
-	blockInfos map[string]BlockInfo
+	opts ServiceOpts
 }
 
 func NewService(opts ServiceOpts) (Service, error) {
@@ -76,14 +100,13 @@ func NewService(opts ServiceOpts) (Service, error) {
 		return nil, fmt.Errorf("options are not valid: %w", err)
 	}
 
-	s := service{
-		opts: opts,
-		logEntry: logrus.WithFields(logrus.Fields{
-			"id":       opts.ID,
-			"location": opts.Location,
-		})}
+	s := service{opts: opts}
 
-	s.logEntry.Info("Initializing")
+	err = s.report()
+	if err != nil {
+		return nil, fmt.Errorf("report failed: %w", err)
+	}
+
 	err = s.healthCheck()
 	if err != nil {
 		return nil, fmt.Errorf("health check failed: %w", err)
@@ -95,11 +118,21 @@ func NewService(opts ServiceOpts) (Service, error) {
 	}
 
 	go func() {
+		ticker := time.NewTicker(opts.ReportInterval)
+		for range ticker.C {
+			err := s.report()
+			if err != nil {
+				s.opts.Logger.WithError(err).Fatal("report failed")
+			}
+		}
+	}()
+
+	go func() {
 		ticker := time.NewTicker(opts.HealthCheckInterval)
 		for range ticker.C {
 			err := s.healthCheck()
 			if err != nil {
-				s.logEntry.WithError(err).Fatal("health check failed")
+				s.opts.Logger.WithError(err).Fatal("health check failed")
 			}
 		}
 	}()
@@ -109,7 +142,7 @@ func NewService(opts ServiceOpts) (Service, error) {
 		for range ticker.C {
 			err := s.validateCRC()
 			if err != nil {
-				s.logEntry.WithError(err).Fatal("validate CRC failed")
+				s.opts.Logger.WithError(err).Fatal("validate CRC failed")
 			}
 		}
 	}()
@@ -118,26 +151,40 @@ func NewService(opts ServiceOpts) (Service, error) {
 }
 
 func (s *service) GetBlockIds() ([]string, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
+	var blockIds []string
+	err := s.opts.DB.Transaction(func(tx *gorm.DB) error {
+		blockInfos := []BlockInfo{}
+		err := tx.Find(&blockInfos).Error
+		if err != nil {
+			return fmt.Errorf("failed to get block ids: %w", err)
+		}
 
-	ids := make([]string, 0, len(s.blockInfos))
+		for _, blockInfo := range blockInfos {
+			blockIds = append(blockIds, blockInfo.ID)
+		}
 
-	for id := range s.blockInfos {
-		ids = append(ids, id)
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block ids: %w", err)
 	}
 
-	return ids, nil
+	return blockIds, nil
 }
 
 func (s *service) GetBlocks() ([]BlockInfo, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
+	var blockInfos []BlockInfo
 
-	blockInfos := make([]BlockInfo, 0, len(s.blockInfos))
+	err := s.opts.DB.Transaction(func(tx *gorm.DB) error {
+		err := tx.Find(&blockInfos).Error
+		if err != nil {
+			return fmt.Errorf("failed to get blocks: %w", err)
+		}
 
-	for _, blockInfo := range s.blockInfos {
-		blockInfos = append(blockInfos, blockInfo)
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blocks: %w", err)
 	}
 
 	return blockInfos, nil
@@ -151,64 +198,116 @@ func (s *service) WriteBlock(blockInfo BlockInfo, data []byte) error {
 		return fmt.Errorf("invalid length")
 	}
 
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	err := s.writeBlockData(blockInfo.ID, data)
+	path := filepath.Join(s.opts.Dir.Name(), fmt.Sprintf("%s.data", uuid.New().String()))
+	err := os.WriteFile(path, data, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write data file: %w", err)
 	}
 
-	err = s.writeBlockInfo(blockInfo)
+	err = s.opts.DB.Transaction(func(tx *gorm.DB) error {
+		blockInfo.DataFilePath = path
+		err := tx.Create(&blockInfo).Error
+		if err != nil {
+			return fmt.Errorf("failed to create block info: %w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to write meta data file: %w", err)
+		return fmt.Errorf("failed to create block info: %w", err)
 	}
 
-	s.blockInfos[blockInfo.ID] = blockInfo
+	conn, err := s.opts.ClientConnectionFactory(s.opts.NameNodeHost)
+	if err != nil {
+		return fmt.Errorf("failed to create client connection: %w", err)
+	}
+	defer conn.Close()
+	client := proto.NewNameInternalClient(conn)
+
+	_, err = client.NotifyBlocksAdded(context.Background(), &proto.BlockInfoReport{
+		Host: s.opts.Host,
+		BlockInfos: []*proto.BlockInfoItem{{
+			BlockId:  blockInfo.ID,
+			Path:     blockInfo.Path,
+			Crc:      blockInfo.CRC,
+			Sequence: blockInfo.Sequence,
+			Length:   blockInfo.Length,
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to notify blocks added: %w", err)
+	}
 
 	return nil
 }
 
 func (s *service) DeleteBlock(id string) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	mdFilePath := s.createMetaDataPath(id)
-	dataFilePath := s.createDataPath(id)
-	logEntry := s.logEntry.WithFields(logrus.Fields{
-		"block-id":            id,
-		"meta-data-file-path": mdFilePath,
-		"data-file-path":      dataFilePath,
+	var path string
+	err := s.opts.DB.Transaction(func(tx *gorm.DB) error {
+		blockInfo := BlockInfo{}
+		err := tx.Model(&blockInfo).Where("id = ?", id).Error
+		if err != nil {
+			return fmt.Errorf("failed to get block info: %w", err)
+		}
+		path = blockInfo.DataFilePath
+		err = tx.Delete(&blockInfo).Error
+		if err != nil {
+			return fmt.Errorf("failed to delete block info: %w", err)
+		}
+
+		return nil
 	})
-	err := os.Remove(mdFilePath)
 	if err != nil {
-		logEntry.WithError(err).Error("failed to delete metadata file")
+		return fmt.Errorf("failed to delete block info: %w", err)
 	}
 
-	err = os.Remove(dataFilePath)
+	conn, err := s.opts.ClientConnectionFactory(s.opts.NameNodeHost)
 	if err != nil {
-		logEntry.WithError(err).Error("failed to delete data file")
+		return fmt.Errorf("failed to create client connection: %w", err)
+	}
+	defer conn.Close()
+	client := proto.NewNameInternalClient(conn)
+	_, err = client.NotifyBlocksRemoved(context.Background(), &proto.BlockInfoReport{
+		Host: s.opts.Host,
+		BlockInfos: []*proto.BlockInfoItem{{
+			BlockId: id,
+			Path:    path,
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to notify blocks removed: %w", err)
 	}
 
-	delete(s.blockInfos, id)
+	err = os.Remove(path)
+	if err != nil {
+		return fmt.Errorf("failed to remove data file: %w", err)
+	}
 
 	return nil
 }
 
 func (s *service) ReadBlock(id string) ([]byte, BlockInfo, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
+	var data []byte
+	var blockInfo BlockInfo
+	err := s.opts.DB.Transaction(func(tx *gorm.DB) error {
+		err := tx.Model(&blockInfo).Where("id = ?", id).Error
+		if err != nil {
+			return fmt.Errorf("failed to get block info: %w", err)
+		}
 
-	blockInfo, ok := s.blockInfos[id]
-	if !ok {
-		return nil, BlockInfo{}, fmt.Errorf("block id %s not found", id)
-	}
-
-	data, crc, err := s.readBlockData(id)
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
-		return nil, BlockInfo{}, fmt.Errorf("could not read data for block id %s : %w", id, err)
+		return nil, blockInfo, fmt.Errorf("failed to get block info: %w", err)
 	}
 
-	if blockInfo.CRC != crc {
-		return nil, BlockInfo{}, fmt.Errorf("invalid checksum (mismatch)")
+	data, err = os.ReadFile(blockInfo.DataFilePath)
+	if err != nil {
+		return nil, blockInfo, fmt.Errorf("failed to read data file: %w", err)
+	}
+
+	if blockInfo.CRC != crc32.ChecksumIEEE(data) {
+		return nil, blockInfo, fmt.Errorf("invalid checksum (mismatch)")
 	}
 
 	if blockInfo.Length != uint32(len(data)) {
@@ -218,85 +317,135 @@ func (s *service) ReadBlock(id string) ([]byte, BlockInfo, error) {
 	return data, blockInfo, nil
 }
 
-func CopyBlock(id string, source Service, dest Service) error {
-	data, blockInfo, err := source.ReadBlock(id)
+func (s *service) report() error {
+	protoBlockInfos := []*proto.BlockInfoItem{}
+
+	err := s.opts.DB.Transaction(func(tx *gorm.DB) error {
+		blockInfos := []BlockInfo{}
+		err := tx.Find(&blockInfos).Error
+		if err != nil {
+			return fmt.Errorf("failed to get block ids: %w", err)
+		}
+
+		for _, blockInfo := range blockInfos {
+			protoBlockInfos = append(protoBlockInfos, &proto.BlockInfoItem{
+				BlockId:  blockInfo.ID,
+				Path:     blockInfo.Path,
+				Crc:      blockInfo.CRC,
+				Sequence: blockInfo.Sequence,
+				Length:   blockInfo.Length,
+			})
+		}
+
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
-		return fmt.Errorf("failed to read data for block id %s : %w", id, err)
+		return fmt.Errorf("failed to health check block info: %w", err)
 	}
 
-	err = dest.WriteBlock(blockInfo, data)
+	conn, err := s.opts.ClientConnectionFactory(s.opts.NameNodeHost)
 	if err != nil {
-		return fmt.Errorf("failed to write data for block id %s : %w", id, err)
+		return fmt.Errorf("failed to create client connection: %w", err)
+	}
+	defer conn.Close()
+	client := proto.NewNameInternalClient(conn)
+
+	_, err = client.NotifyBlocksRemoved(context.Background(), &proto.BlockInfoReport{
+		Host:       s.opts.Host,
+		BlockInfos: protoBlockInfos,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to report: %w", err)
 	}
 
 	return nil
 }
 
 func (s *service) healthCheck() error {
-	toDelete := map[string]bool{}
-
-	s.lock.RLock()
-	for id, blockInfo := range s.blockInfos {
-		mdFilePath := s.createMetaDataPath(id)
-		dataFilePath := s.createDataPath(id)
-		logEntry := s.logEntry.WithFields(logrus.Fields{
-			"block-id":       id,
-			"block-info":     blockInfo,
-			"md-file-path":   mdFilePath,
-			"data-file-path": dataFilePath,
-		})
-
-		_, err := os.Stat(mdFilePath)
-		if err != nil {
-			logEntry.WithError(err).Warn("failed to stat metadata file")
-			toDelete[id] = true
-		}
-
-		_, err = os.Stat(dataFilePath)
-		if err != nil {
-			logEntry.WithError(err).Warn("failed to stat data file")
-			toDelete[id] = true
-		}
+	deletedBlockInfoReport := &proto.BlockInfoReport{
+		Host:       s.opts.Host,
+		BlockInfos: []*proto.BlockInfoItem{},
 	}
-	s.lock.RUnlock()
+	pathsToDelete := map[string]bool{}
 
-	if len(toDelete) > 0 {
-		s.logEntry.Warn("deleting bad blocks")
-		for id := range toDelete {
-			logEntry := s.logEntry.WithField("block-id", id)
-			err := s.DeleteBlock(id)
-			if err != nil {
-				logEntry.WithError(err).Warn("failed to delete bad block")
+	err := s.opts.DB.Transaction(func(tx *gorm.DB) error {
+		blockInfos := []BlockInfo{}
+		err := tx.Find(&blockInfos).Error
+		if err != nil {
+			return fmt.Errorf("failed to get block ids: %w", err)
+		}
+
+		logEntry := s.opts.Logger.WithField("block-infos-count", len(blockInfos))
+
+		for _, blockInfo := range blockInfos {
+			logEntry = logEntry.WithField("block-info", blockInfo)
+			path := blockInfo.DataFilePath
+
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				err := tx.Delete(&blockInfo).Error
+				if err != nil {
+					return fmt.Errorf("failed to delete block info: %w", err)
+				}
+				deletedBlockInfoReport.BlockInfos = append(
+					deletedBlockInfoReport.BlockInfos,
+					&proto.BlockInfoItem{
+						BlockId: blockInfo.ID,
+					})
+				pathsToDelete[path] = true
 			}
 		}
-		s.logEntry.Warn("finished deleting bad blocks")
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to health check block info: %w", err)
+	}
+
+	if len(deletedBlockInfoReport.GetBlockInfos()) > 0 {
+		conn, err := s.opts.ClientConnectionFactory(s.opts.NameNodeHost)
+		if err != nil {
+			return fmt.Errorf("failed to create client connection: %w", err)
+		}
+		defer conn.Close()
+		client := proto.NewNameInternalClient(conn)
+
+		_, err = client.NotifyBlocksRemoved(context.Background(), deletedBlockInfoReport)
+	}
+
+	if len(pathsToDelete) > 0 {
+		s.opts.Logger.Warn("deleting bad blocks")
+		for path := range pathsToDelete {
+			err := os.Remove(path)
+			if err != nil {
+				s.opts.Logger.WithError(err).Error("failed to remove file")
+			}
+		}
+		s.opts.Logger.Warn("finished deleting bad blocks")
 	}
 
 	return nil
-
 }
 
 func (s *service) validateCRC() error {
-	toDelete := map[string]bool{}
+	pathCrcs := map[string]uint32{}
 
 	files, err := os.ReadDir(s.opts.Dir.Name())
 	if err != nil {
 		return fmt.Errorf("cannot read dir %s : %w", s.opts.Dir, err)
 	}
 
-	s.lock.RLock()
 	for _, f := range files {
 		if f.IsDir() {
 			continue
 		}
 
-		name := f.Name()
+		path := f.Name()
 
-		if !strings.HasSuffix(name, ".data") {
+		if !strings.HasSuffix(path, ".data") {
 			continue
 		}
 
-		logEntry := s.logEntry.WithField("file-path", f.Name())
+		logEntry := s.opts.Logger.WithField("file-path", path)
 
 		_, err := f.Info()
 		if err != nil {
@@ -304,142 +453,87 @@ func (s *service) validateCRC() error {
 			continue
 		}
 
-		id := strings.TrimSuffix(name, ".data")
-
-		logEntry = logEntry.WithField("block-id", id)
-		_, crc, err := s.readBlockData(id)
+		data, err := os.ReadFile(path)
 		if err != nil {
-			logEntry.WithError(err).Error("cannot read block data")
-			toDelete[id] = true
-			continue
-		}
-		logEntry = logEntry.WithField("crc", crc)
-
-		_, err = os.Stat(s.createMetaDataPath(id))
-		if err != nil {
-			logEntry.WithError(err).Error("cannot stat metadate file")
-			toDelete[id] = true
+			logEntry.WithError(err).Error("cannot read file")
+			err := os.Remove(path)
+			if err != nil {
+				logEntry.WithError(err).Error("failed to remove file")
+			}
 			continue
 		}
 
-		blockInfo, err := s.readBlockInfo(id)
+		pathCrcs[path] = crc32.ChecksumIEEE(data)
+	}
+
+	pathsToDelete := map[string]bool{}
+	deletedBlockInfoReport := &proto.BlockInfoReport{
+		Host:       s.opts.Host,
+		BlockInfos: []*proto.BlockInfoItem{},
+	}
+
+	err = s.opts.DB.Transaction(func(tx *gorm.DB) error {
+		blockInfos := []BlockInfo{}
+		err := tx.Find(&blockInfos).Error
 		if err != nil {
-			logEntry.WithError(err).Error("cannot read block info")
-			toDelete[id] = true
-			continue
+			return fmt.Errorf("failed to get block ids: %w", err)
 		}
 
-		logEntry = logEntry.WithField("block-info", blockInfo)
+		logEntry := s.opts.Logger.WithField("block-infos-count", len(blockInfos))
 
-		if crc != blockInfo.CRC {
-			logEntry.WithError(err).Error("crc mismatch")
-			toDelete[id] = true
-			continue
+		for _, blockInfo := range blockInfos {
+			logEntry = logEntry.WithField("block-info", blockInfos)
+			path := blockInfo.DataFilePath
+
+			if _, ok := pathCrcs[path]; !ok {
+				err := tx.Delete(&blockInfo).Error
+				if err != nil {
+					return fmt.Errorf("failed to delete block info: %w", err)
+				}
+
+				deletedBlockInfoReport.BlockInfos = append(
+					deletedBlockInfoReport.BlockInfos,
+					&proto.BlockInfoItem{
+						BlockId: blockInfo.ID,
+					})
+			}
+
+			if pathCrcs[path] != blockInfo.CRC {
+				err := tx.Delete(&blockInfo).Error
+				if err != nil {
+					return fmt.Errorf("failed to delete block info: %w", err)
+				}
+				deletedBlockInfoReport.BlockInfos = append(
+					deletedBlockInfoReport.BlockInfos,
+					&proto.BlockInfoItem{
+						BlockId: blockInfo.ID,
+					})
+				pathsToDelete[path] = true
+			}
 		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete block info: %w", err)
 	}
-	s.lock.RUnlock()
 
-	for id := range toDelete {
-		err := s.DeleteBlock(id)
+	for path := range pathsToDelete {
+		err := os.Remove(path)
 		if err != nil {
-			s.logEntry.WithError(err).WithField("block-id", id).Warn("failed to delete bad block")
+			s.opts.Logger.WithError(err).WithField("file", path).Error("failed to remove file")
 		}
 	}
 
-	return nil
-}
+	if len(deletedBlockInfoReport.GetBlockInfos()) > 0 {
+		conn, err := s.opts.ClientConnectionFactory(s.opts.NameNodeHost)
+		if err != nil {
+			return fmt.Errorf("failed to create client connection: %w", err)
+		}
+		defer conn.Close()
+		client := proto.NewNameInternalClient(conn)
 
-func (s *service) createMetaDataPath(id string) string {
-	return s.createPath(id, "md.json")
-}
-
-func (s *service) createDataPath(id string) string {
-	return s.createPath(id, "data")
-}
-
-func (s *service) createPath(id string, suffix string) string {
-	return filepath.Join(s.opts.Dir.Name(), fmt.Sprintf("%s.%s", id, suffix))
-}
-
-func (s *service) readBlockInfo(id string) (BlockInfo, error) {
-	bi, err := s.readBlockInfoFromPath(s.createMetaDataPath(id))
-	if err != nil {
-		return bi, fmt.Errorf("failed to read block info id %s: %w", id, err)
-	}
-
-	return bi, nil
-}
-
-func (s *service) readBlockInfoFromPath(path string) (BlockInfo, error) {
-	bi := BlockInfo{}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return bi, fmt.Errorf("cannot read block info metadata file %s: %w", path, err)
-	}
-
-	err = json.Unmarshal(b, &bi)
-	if err != nil {
-		return bi, fmt.Errorf("cannot parse block info metadata file %s: %w", path, err)
-	}
-
-	return bi, nil
-}
-
-func (s *service) writeBlockInfo(bi BlockInfo) error {
-	err := s.writeBlockInfoToPath(s.createMetaDataPath(bi.ID), bi)
-	if err != nil {
-		return fmt.Errorf("cannot write block info metadata id %s: %w", bi.ID, err)
-	}
-
-	return nil
-}
-
-func (s *service) writeBlockInfoToPath(path string, bi BlockInfo) error {
-	b, err := json.Marshal(bi)
-	if err != nil {
-		return fmt.Errorf("cannot marshal block info metadata file %s: %w", path, err)
-	}
-
-	err = os.WriteFile(path, b, 0600)
-	if err != nil {
-		return fmt.Errorf("cannot write block info metadata file %s: %w", path, err)
-	}
-
-	return nil
-}
-
-func (s *service) readBlockData(id string) ([]byte, uint32, error) {
-	b, crc, err := s.readBlockDataFromPath(s.createDataPath(id))
-	if err != nil {
-		return nil, 0, fmt.Errorf("cannot read block info metadata id %s: %w", id, err)
-	}
-
-	return b, crc, nil
-}
-
-func (s *service) readBlockDataFromPath(path string) ([]byte, uint32, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return b, 0, fmt.Errorf("cannot read block data metadata file %s: %w", path, err)
-	}
-	crc := crc32.ChecksumIEEE(b)
-
-	return b, crc, nil
-}
-
-func (s *service) writeBlockData(id string, data []byte) error {
-	err := s.writeBlockDataToPath(s.createDataPath(id), data)
-	if err != nil {
-		return fmt.Errorf("cannot write block data metadata id %s: %w", id, err)
-	}
-
-	return nil
-}
-
-func (s *service) writeBlockDataToPath(path string, data []byte) error {
-	err := os.WriteFile(path, data, 0600)
-	if err != nil {
-		return fmt.Errorf("cannot write block data metadata file %s: %w", path, err)
+		_, err = client.NotifyBlocksRemoved(context.Background(), deletedBlockInfoReport)
 	}
 
 	return nil
