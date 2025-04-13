@@ -50,12 +50,13 @@ message GetBlockResponse {
 }
 
 message WriteBlockRequest {
-  BlockInfo blockInfo = 1;
-  bytes data = 2;
+  string id = 1;
+  string path = 2;
+  uint64 sequence = 3;
+  bytes data = 4;
 }
 
 message WriteBlockResponse {
-  BlockInfo blockInfo = 1;
 }
 
 message DeleteBlockRequest {

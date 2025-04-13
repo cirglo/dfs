@@ -60,11 +60,10 @@ func (i InternalServer) NotifyBlocksAdded(ctx context.Context, report *proto.Blo
 }
 
 func (i InternalServer) NotifyBlocksRemoved(ctx context.Context, report *proto.BlockInfoReport) (*proto.BlockInfoReportResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	fmt.Println("NotifyBlocksRemoved not implemented")
+	return &proto.BlockInfoReportResponse{}, nil
 }
 
 func (i InternalServer) mustEmbedUnimplementedNameInternalServer() {
-	//TODO implement me
-	panic("implement me")
+	fmt.Println("mustEmbedUnimplementedNameInternalServer()")
 }

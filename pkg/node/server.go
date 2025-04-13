@@ -105,27 +105,17 @@ func (s *server) GetBlock(ctx context.Context, request *proto.GetBlockRequest) (
 }
 
 func (s *server) WriteBlock(ctx context.Context, request *proto.WriteBlockRequest) (*proto.WriteBlockResponse, error) {
-	err := s.opts.Service.WriteBlock(BlockInfo{
-		ID:       request.GetBlockInfo().GetBlockId(),
-		Sequence: request.GetBlockInfo().GetSequence(),
-		Length:   request.GetBlockInfo().GetLength(),
-		Path:     request.GetBlockInfo().GetPath(),
-		CRC:      request.GetBlockInfo().GetCrc(),
-	},
-		request.Data)
+	err := s.opts.Service.WriteBlock(
+		request.GetId(),
+		request.GetPath(),
+		request.GetSequence(),
+		request.GetData())
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &proto.WriteBlockResponse{BlockInfo: &proto.BlockInfo{
-		BlockId:  request.GetBlockInfo().GetBlockId(),
-		Crc:      request.GetBlockInfo().GetCrc(),
-		Sequence: request.GetBlockInfo().GetSequence(),
-		Length:   request.GetBlockInfo().GetLength(),
-		Path:     request.GetBlockInfo().GetPath(),
-	},
-	}, nil
+	return &proto.WriteBlockResponse{}, nil
 }
 
 func (s *server) DeleteBlock(ctx context.Context, request *proto.DeleteBlockRequest) (*proto.DeleteBlockResponse, error) {
@@ -150,14 +140,11 @@ func (s *server) CopyBlock(ctx context.Context, request *proto.CopyBlockRequest)
 	defer conn.Close()
 	client := proto.NewNodeClient(conn)
 	_, err = client.WriteBlock(ctx, &proto.WriteBlockRequest{
-		BlockInfo: &proto.BlockInfo{
-			BlockId:  blockInfo.ID,
-			Crc:      blockInfo.CRC,
-			Sequence: blockInfo.Sequence,
-			Length:   blockInfo.Length,
-			Path:     blockInfo.Path,
-		},
-		Data: data})
+		Id:       blockInfo.ID,
+		Path:     blockInfo.Path,
+		Sequence: blockInfo.Sequence,
+		Data:     data,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to write data for block id %s : %w", blockInfo.ID, err)
 	}

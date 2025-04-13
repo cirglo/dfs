@@ -222,6 +222,5 @@ func (s Server) StatFile(ctx context.Context, request *proto.StatFileRequest) (*
 }
 
 func (s Server) mustEmbedUnimplementedNameServer() {
-	//TODO implement me
-	panic("implement me")
+	fmt.Println("mustEmbedUnimplementedNameServer()")
 }

@@ -460,7 +460,7 @@ func (s *securityService) IsTokenValid(token string, userName string) bool {
 		return nil
 	}, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
-		s.Opts.Logger.Errorf("failed to check token %w", err)
+		s.Opts.Logger.WithError(err).Error("failed to check token")
 		return false
 	}
 

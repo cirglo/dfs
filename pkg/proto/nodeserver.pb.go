@@ -364,8 +364,10 @@ func (x *GetBlockResponse) GetData() []byte {
 
 type WriteBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockInfo     *BlockInfo             `protobuf:"bytes,1,opt,name=blockInfo,proto3" json:"blockInfo,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Sequence      uint64                 `protobuf:"varint,3,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -400,11 +402,25 @@ func (*WriteBlockRequest) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *WriteBlockRequest) GetBlockInfo() *BlockInfo {
+func (x *WriteBlockRequest) GetId() string {
 	if x != nil {
-		return x.BlockInfo
+		return x.Id
 	}
-	return nil
+	return ""
+}
+
+func (x *WriteBlockRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *WriteBlockRequest) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
 }
 
 func (x *WriteBlockRequest) GetData() []byte {
@@ -416,7 +432,6 @@ func (x *WriteBlockRequest) GetData() []byte {
 
 type WriteBlockResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockInfo     *BlockInfo             `protobuf:"bytes,1,opt,name=blockInfo,proto3" json:"blockInfo,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -449,13 +464,6 @@ func (x *WriteBlockResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use WriteBlockResponse.ProtoReflect.Descriptor instead.
 func (*WriteBlockResponse) Descriptor() ([]byte, []int) {
 	return file_nodeserver_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *WriteBlockResponse) GetBlockInfo() *BlockInfo {
-	if x != nil {
-		return x.BlockInfo
-	}
-	return nil
 }
 
 type DeleteBlockRequest struct {
@@ -651,12 +659,13 @@ const file_nodeserver_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"[\n" +
 	"\x10GetBlockResponse\x123\n" +
 	"\tblockInfo\x18\x01 \x01(\v2\x15.nodeserver.BlockInfoR\tblockInfo\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"\\\n" +
-	"\x11WriteBlockRequest\x123\n" +
-	"\tblockInfo\x18\x01 \x01(\v2\x15.nodeserver.BlockInfoR\tblockInfo\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"I\n" +
-	"\x12WriteBlockResponse\x123\n" +
-	"\tblockInfo\x18\x01 \x01(\v2\x15.nodeserver.BlockInfoR\tblockInfo\"$\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"g\n" +
+	"\x11WriteBlockRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1a\n" +
+	"\bsequence\x18\x03 \x01(\x04R\bsequence\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\"\x14\n" +
+	"\x12WriteBlockResponse\"$\n" +
 	"\x12DeleteBlockRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x15\n" +
 	"\x13DeleteBlockResponse\"D\n" +
@@ -706,25 +715,23 @@ var file_nodeserver_proto_depIdxs = []int32{
 	0,  // 0: nodeserver.GetBlockInfosResponse.blockInfos:type_name -> nodeserver.BlockInfo
 	0,  // 1: nodeserver.GetBlockInfoResponse.blockInfo:type_name -> nodeserver.BlockInfo
 	0,  // 2: nodeserver.GetBlockResponse.blockInfo:type_name -> nodeserver.BlockInfo
-	0,  // 3: nodeserver.WriteBlockRequest.blockInfo:type_name -> nodeserver.BlockInfo
-	0,  // 4: nodeserver.WriteBlockResponse.blockInfo:type_name -> nodeserver.BlockInfo
-	1,  // 5: nodeserver.Node.GetBlockInfos:input_type -> nodeserver.GetBlockInfosRequest
-	3,  // 6: nodeserver.Node.GetBlockInfo:input_type -> nodeserver.GetBlockInfoRequest
-	5,  // 7: nodeserver.Node.GetBlock:input_type -> nodeserver.GetBlockRequest
-	7,  // 8: nodeserver.Node.WriteBlock:input_type -> nodeserver.WriteBlockRequest
-	9,  // 9: nodeserver.Node.DeleteBlock:input_type -> nodeserver.DeleteBlockRequest
-	11, // 10: nodeserver.Node.CopyBlock:input_type -> nodeserver.CopyBlockRequest
-	2,  // 11: nodeserver.Node.GetBlockInfos:output_type -> nodeserver.GetBlockInfosResponse
-	4,  // 12: nodeserver.Node.GetBlockInfo:output_type -> nodeserver.GetBlockInfoResponse
-	6,  // 13: nodeserver.Node.GetBlock:output_type -> nodeserver.GetBlockResponse
-	8,  // 14: nodeserver.Node.WriteBlock:output_type -> nodeserver.WriteBlockResponse
-	10, // 15: nodeserver.Node.DeleteBlock:output_type -> nodeserver.DeleteBlockResponse
-	12, // 16: nodeserver.Node.CopyBlock:output_type -> nodeserver.CopyBlockResponse
-	11, // [11:17] is the sub-list for method output_type
-	5,  // [5:11] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	1,  // 3: nodeserver.Node.GetBlockInfos:input_type -> nodeserver.GetBlockInfosRequest
+	3,  // 4: nodeserver.Node.GetBlockInfo:input_type -> nodeserver.GetBlockInfoRequest
+	5,  // 5: nodeserver.Node.GetBlock:input_type -> nodeserver.GetBlockRequest
+	7,  // 6: nodeserver.Node.WriteBlock:input_type -> nodeserver.WriteBlockRequest
+	9,  // 7: nodeserver.Node.DeleteBlock:input_type -> nodeserver.DeleteBlockRequest
+	11, // 8: nodeserver.Node.CopyBlock:input_type -> nodeserver.CopyBlockRequest
+	2,  // 9: nodeserver.Node.GetBlockInfos:output_type -> nodeserver.GetBlockInfosResponse
+	4,  // 10: nodeserver.Node.GetBlockInfo:output_type -> nodeserver.GetBlockInfoResponse
+	6,  // 11: nodeserver.Node.GetBlock:output_type -> nodeserver.GetBlockResponse
+	8,  // 12: nodeserver.Node.WriteBlock:output_type -> nodeserver.WriteBlockResponse
+	10, // 13: nodeserver.Node.DeleteBlock:output_type -> nodeserver.DeleteBlockResponse
+	12, // 14: nodeserver.Node.CopyBlock:output_type -> nodeserver.CopyBlockResponse
+	9,  // [9:15] is the sub-list for method output_type
+	3,  // [3:9] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_nodeserver_proto_init() }
