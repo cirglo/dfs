@@ -25,36 +25,43 @@ type FileService interface {
 }
 
 type DirInfo struct {
-	ID          uint64
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Name        string      `gorm:"uniqueIndex:idx_dirinfo_name;not null;not empty"`
-	Parent      *DirInfo    `gorm:"many2many:dir_childdirs;uniqueIndex:idx_dirinfo_name;"`
-	ChildDirs   []*DirInfo  `gorm:"many2many:dir_childdirs;not null"`
-	ChildFiles  []*FileInfo `gorm:"many2many:dir_childfiles;not null"`
-	Permissions Permissions `gorm:"embedded;not null;"`
+	ID          uint64      `gorm:"column:id;autoIncrement;primaryKey"`
+	CreatedAt   time.Time   `gorm:"column:created_at"`
+	UpdatedAt   time.Time   `gorm:"column:updated_at"`
+	Name        string      `gorm:"column:name;uniqueIndex:idx_dirinfo_name;not null"`
+	Parent      *DirInfo    `gorm:"column:parent_id;foreignKey:ID;uniqueIndex:idx_dirinfo_name"`
+	ChildDirs   []DirInfo   `gorm:"foreignKey:parent_id;references:id"`
+	ChildFiles  []FileInfo  `gorm:"foreignKey:dir_id;references:id"`
+	Permissions Permissions `gorm:"embedded;embeddedPrefix:permissions_"`
 }
 
 type FileInfo struct {
-	ID          uint64
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Name        string      `gorm:"uniqueIndex:idx_fileinfo_name;not null;not empty;"`
-	Dir         *DirInfo    `gorm:"many2many:dir_childfiles;uniqueIndex:idx_fileinfo_name;not null;"`
-	Size        uint64      `gorm:"not null;"`
-	Permissions Permissions `gorm:"embedded;not null;"`
-	BlockInfos  []BlockInfo
-	Healthy     bool `gorm:"not null;"`
+	ID          uint64       `gorm:"column:id;autoIncrement;primaryKey"`
+	CreatedAt   time.Time    `gorm:"column:created_at"`
+	UpdatedAt   time.Time    `gorm:"column:updated_at"`
+	Name        string       `gorm:"column:name;uniqueIndex:idx_fileinfo_name;not null"`
+	Dir         DirInfo      `gorm:"column:dir_id;foreignKey:id;uniqueIndex:idx_fileinfo_name;not null"`
+	Size        uint64       `gorm:"column:size;not null"`
+	Permissions Permissions  `gorm:"embedded;embeddedPrefix:permissions_"`
+	BlockInfos  []*BlockInfo `gorm:"foreignKey:file_id;references:id"`
+	Healthy     bool         `gorm:"column:healthy;not null;"`
 }
 
 type BlockInfo struct {
-	ID        string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Locations []string
-	Sequence  uint64 `gorm:"uniqueIndex:idx_fileinfo_sequence;not null"`
-	Length    uint32 `gorm:"not null;"`
-	CRC       uint32 `gorm:"not null;"`
+	ID        string     `gorm:"column:id;primaryKey;not null"`
+	CreatedAt time.Time  `gorm:"column:created_at"`
+	UpdatedAt time.Time  `gorm:"column:updated_at"`
+	Locations []Location `gorm:"foreignKey:block_info_id;references:id"`
+	FileInfo  FileInfo   `gorm:"column:file_id;foreignKey:id;uniqueIndex:idx_fileinfo_sequence;not null"`
+	Sequence  uint64     `gorm:"column:sequence;uniqueIndex:idx_fileinfo_sequence;not null"`
+	Length    uint32     `gorm:"column:length;not null"`
+	CRC       uint32     `gorm:"column:crc;not null"`
+}
+
+type Location struct {
+	ID        uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	BlockInfo BlockInfo `gorm:"column:block_info_id;foreignKey:id;uniqueIndex:idx_location;not null"`
+	Location  string    `gorm:"column:location;uniqueIndex:idx_location;not null"`
 }
 
 type Principal interface {
@@ -91,11 +98,11 @@ func (p principal) ComputePrivileges(permissions Permissions) Privileges {
 	canRead := false
 	canWrite := false
 
-	if permissions.OtherPermisson.Read {
+	if permissions.OtherPermission.Read {
 		canRead = true
 	}
 
-	if permissions.OtherPermisson.Write {
+	if permissions.OtherPermission.Write {
 		canWrite = true
 	}
 
@@ -176,16 +183,16 @@ func (p Privileges) Union(o Privileges) Privileges {
 }
 
 type Permission struct {
-	Read  bool `gorm:"not null;"`
-	Write bool `gorm:"not null;"`
+	Read  bool `gorm:"column:read;not null"`
+	Write bool `gorm:"column:write;not null"`
 }
 
 type Permissions struct {
-	Owner           string     `gorm:"not null;not empty;"`
-	Group           string     `gorm:"not null;not empty;"`
-	OwnerPermission Permission `gorm:"not null;"`
-	GroupPermission Permission `gorm:"not null;"`
-	OtherPermisson  Permission `gorm:"not null;"`
+	Owner           string     `gorm:"column:owner;not null"`
+	Group           string     `gorm:"column:group;not null"`
+	OwnerPermission Permission `gorm:"embedded;embeddedPrefix:owner_permission"`
+	GroupPermission Permission `gorm:"embedded;emebeddedPrefix:group_permission"`
+	OtherPermission Permission `gorm:"embedded;embeddedPrefix:other_permission"`
 }
 
 type FileServiceOpts struct {
@@ -388,14 +395,14 @@ func (f *fileService) CreateFile(p Principal, path string, perms Permissions) (F
 		parentDir := dirInfos[len(dirInfos)-1]
 		fileInfo = FileInfo{
 			Name:        filepath.Base(path),
-			Dir:         &parentDir,
+			Dir:         parentDir,
 			Size:        0,
 			Permissions: perms,
-			BlockInfos:  []BlockInfo{},
+			BlockInfos:  []*BlockInfo{},
 			Healthy:     true,
 		}
 
-		contains := slices.ContainsFunc(parentDir.ChildFiles, func(f *FileInfo) bool {
+		contains := slices.ContainsFunc(parentDir.ChildFiles, func(f FileInfo) bool {
 			return f.Name == fileInfo.Name
 		})
 
@@ -403,7 +410,7 @@ func (f *fileService) CreateFile(p Principal, path string, perms Permissions) (F
 			return fmt.Errorf("file %s already exists", path)
 		}
 
-		contains = slices.ContainsFunc(parentDir.ChildDirs, func(d *DirInfo) bool {
+		contains = slices.ContainsFunc(parentDir.ChildDirs, func(d DirInfo) bool {
 			return d.Name == fileInfo.Name
 		})
 
@@ -444,7 +451,7 @@ func (f *fileService) CreateDir(p Principal, path string, perms Permissions) (Fi
 			Parent:      &parentDir,
 		}
 
-		contains := slices.ContainsFunc(parentDir.ChildDirs, func(d *DirInfo) bool {
+		contains := slices.ContainsFunc(parentDir.ChildDirs, func(d DirInfo) bool {
 			return d.Name == dirInfo.Name
 		})
 
@@ -452,7 +459,7 @@ func (f *fileService) CreateDir(p Principal, path string, perms Permissions) (Fi
 			return fmt.Errorf("directory %s already exists", path)
 		}
 
-		contains = slices.ContainsFunc(parentDir.ChildFiles, func(f *FileInfo) bool {
+		contains = slices.ContainsFunc(parentDir.ChildFiles, func(f FileInfo) bool {
 			return f.Name == dirInfo.Name
 		})
 
@@ -533,7 +540,7 @@ func (f *fileService) DeleteDir(p Principal, path string) error {
 }
 
 func (f *fileService) validateBlockInfos(tx *gorm.DB, fileInfo *FileInfo) error {
-	blockInfos := append([]BlockInfo{}, fileInfo.BlockInfos...)
+	blockInfos := append([]*BlockInfo{}, fileInfo.BlockInfos...)
 	sequenceMap := map[uint64]*BlockInfo{}
 
 	sort.Slice(blockInfos, func(i, j int) bool {
@@ -544,7 +551,7 @@ func (f *fileService) validateBlockInfos(tx *gorm.DB, fileInfo *FileInfo) error 
 		if _, ok := sequenceMap[blockInfo.Sequence]; ok {
 			return fmt.Errorf("duplicate block info sequence %d", blockInfo.Sequence)
 		}
-		sequenceMap[blockInfo.Sequence] = &blockInfo
+		sequenceMap[blockInfo.Sequence] = blockInfo
 	}
 
 	totalLength := uint64(0)
@@ -614,9 +621,12 @@ func (f *fileService) UpsertBlockInfos(p Principal, path string, blockInfos []Bl
 		for _, blockInfo := range fileInfo.BlockInfos {
 			incoming, ok := incomingIndex[blockInfo.ID]
 			if ok {
-				locationsToAdd := []string{}
+				locationsToAdd := []Location{}
 				for _, location := range incoming.Locations {
-					if !slices.Contains(blockInfo.Locations, location) {
+					contains := slices.ContainsFunc(blockInfo.Locations, func(l Location) bool {
+						return l.Location == location.Location
+					})
+					if !contains {
 						locationsToAdd = append(locationsToAdd, location)
 					}
 				}

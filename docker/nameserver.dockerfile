@@ -15,7 +15,7 @@ COPY . ./
 
 # Build the Go application
 RUN mkdir -p build
-RUN CGO_ENABLED=1 GOOS=linux go build -o build ./cmd/nodeserver/... ./pkg/... ./vendor/...
+RUN CGO_ENABLED=1 GOOS=linux go build -o build ./cmd/nameserver/... ./pkg/... ./vendor/...
 
 
 FROM alpine:3.21.3 AS runtime
@@ -24,7 +24,7 @@ FROM alpine:3.21.3 AS runtime
 WORKDIR /app
 
 # Copy the built executable from the builder stage
-COPY --from=builder /app/build/nodeserver ./nodeserver
+COPY --from=builder /app/build/nameserver ./nameserver
 
 # Command to run the executable
-CMD ["/app/nodeserver"]
+CMD ["/app/nameserver"]

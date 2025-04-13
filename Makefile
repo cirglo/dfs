@@ -1,5 +1,8 @@
 .PHONY: all build docker clean fmt run deps vet lint test
 
+
+export CGO_ENABLED=1
+
 # Default target
 all: build
 

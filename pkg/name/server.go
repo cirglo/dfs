@@ -14,10 +14,11 @@ type ServerOpts struct {
 }
 
 type Server struct {
+	proto.UnimplementedNameServer
 	Opts ServerOpts
 }
 
-func (s *Server) Login(ctx context.Context, request *proto.LoginRequest) (*proto.LoginResponse, error) {
+func (s Server) Login(ctx context.Context, request *proto.LoginRequest) (*proto.LoginResponse, error) {
 	token, err := s.Opts.SecurityService.AuthenticateUser(request.GetUser(), request.GetHashedPassword())
 	if err != nil {
 		return nil, fmt.Errorf("login failed: %w", err)
@@ -28,7 +29,7 @@ func (s *Server) Login(ctx context.Context, request *proto.LoginRequest) (*proto
 	}, nil
 }
 
-func (s *Server) Logout(ctx context.Context, request *proto.LogoutRequest) (*proto.LogoutResponse, error) {
+func (s Server) Logout(ctx context.Context, request *proto.LogoutRequest) (*proto.LogoutResponse, error) {
 	err := s.Opts.SecurityService.Logout(request.GetToken())
 	if err != nil {
 		return nil, fmt.Errorf("logout failed: %w", err)
@@ -50,7 +51,7 @@ func convertProtoPermissions(permissions *proto.Permissions) Permissions {
 		Group:           permissions.GetGroup(),
 		OwnerPermission: convertProtoPermission(permissions.GetOwnerPermission()),
 		GroupPermission: convertProtoPermission(permissions.GetGroupPermission()),
-		OtherPermisson:  convertProtoPermission(permissions.GetOtherPermission()),
+		OtherPermission: convertProtoPermission(permissions.GetOtherPermission()),
 	}
 }
 
@@ -67,11 +68,11 @@ func convertToProtoPermissions(permissions Permissions) *proto.Permissions {
 		Group:           permissions.Group,
 		OwnerPermission: convertToProtoPermission(permissions.OwnerPermission),
 		GroupPermission: convertToProtoPermission(permissions.GroupPermission),
-		OtherPermission: convertToProtoPermission(permissions.OtherPermisson),
+		OtherPermission: convertToProtoPermission(permissions.OtherPermission),
 	}
 }
 
-func (s *Server) CreateFile(ctx context.Context, request *proto.CreateFileRequest) (*proto.CreateFileResponse, error) {
+func (s Server) CreateFile(ctx context.Context, request *proto.CreateFileRequest) (*proto.CreateFileResponse, error) {
 	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup user: %w", err)
@@ -85,7 +86,7 @@ func (s *Server) CreateFile(ctx context.Context, request *proto.CreateFileReques
 	return &proto.CreateFileResponse{}, nil
 }
 
-func (s *Server) CreateDir(ctx context.Context, request *proto.CreateDirRequest) (*proto.CreateDirResponse, error) {
+func (s Server) CreateDir(ctx context.Context, request *proto.CreateDirRequest) (*proto.CreateDirResponse, error) {
 	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup user: %w", err)
@@ -99,7 +100,7 @@ func (s *Server) CreateDir(ctx context.Context, request *proto.CreateDirRequest)
 	return &proto.CreateDirResponse{}, nil
 }
 
-func (s *Server) DeleteFile(ctx context.Context, request *proto.DeleteFileRequest) (*proto.DeleteFileResponse, error) {
+func (s Server) DeleteFile(ctx context.Context, request *proto.DeleteFileRequest) (*proto.DeleteFileResponse, error) {
 	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup user: %w", err)
@@ -112,7 +113,7 @@ func (s *Server) DeleteFile(ctx context.Context, request *proto.DeleteFileReques
 	return &proto.DeleteFileResponse{}, nil
 }
 
-func (s *Server) DeleteDir(ctx context.Context, request *proto.DeleteDirRequest) (*proto.DeleteDirResponse, error) {
+func (s Server) DeleteDir(ctx context.Context, request *proto.DeleteDirRequest) (*proto.DeleteDirResponse, error) {
 	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup user: %w", err)
@@ -150,7 +151,7 @@ func convertToProtoDirEntryFile(fileInfo FileInfo, parentDir string) *proto.DirE
 	}
 }
 
-func (s *Server) ListDir(ctx context.Context, request *proto.ListDirRequest) (*proto.ListDirResponse, error) {
+func (s Server) ListDir(ctx context.Context, request *proto.ListDirRequest) (*proto.ListDirResponse, error) {
 	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup user: %w", err)
@@ -191,7 +192,7 @@ func convertToProtoStatBlockInfo(blockInfo BlockInfo) *proto.StatBlockInfo {
 	}
 }
 
-func (s *Server) StatFile(ctx context.Context, request *proto.StatFileRequest) (*proto.StatFileResponse, error) {
+func (s Server) StatFile(ctx context.Context, request *proto.StatFileRequest) (*proto.StatFileResponse, error) {
 	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup user: %w", err)
@@ -220,9 +221,7 @@ func (s *Server) StatFile(ctx context.Context, request *proto.StatFileRequest) (
 	}, nil
 }
 
-func (s *Server) mustEmbedUnimplementedNameServer() {
+func (s Server) mustEmbedUnimplementedNameServer() {
 	//TODO implement me
 	panic("implement me")
 }
-
-var _ proto.NameServer = &Server{}

@@ -7,24 +7,26 @@ import (
 )
 
 type InternalServer struct {
+	proto.UnimplementedNameInternalServer
 	FileService FileService
 }
 
 func indexReport(report *proto.BlockInfoReport) map[string][]BlockInfo {
 	index := map[string][]BlockInfo{}
-	host := report.GetHost()
+
 	for _, blockInfoItem := range report.GetBlockInfos() {
 		path := blockInfoItem.GetPath()
 		if _, ok := index[path]; !ok {
 			index[path] = []BlockInfo{}
 		}
-		blockID := blockInfoItem.GetBlockId()
 		blockInfo := BlockInfo{
-			ID:        blockID,
-			Sequence:  blockInfoItem.GetSequence(),
-			Length:    blockInfoItem.GetLength(),
-			CRC:       blockInfoItem.GetCrc(),
-			Locations: []string{},
+			ID:       blockInfoItem.GetBlockId(),
+			Sequence: blockInfoItem.GetSequence(),
+			Length:   blockInfoItem.GetLength(),
+			CRC:      blockInfoItem.GetCrc(),
+			Locations: []Location{{
+				Location: report.Host,
+			}},
 		}
 
 		index[path] = append(index[path], blockInfo)
@@ -33,7 +35,7 @@ func indexReport(report *proto.BlockInfoReport) map[string][]BlockInfo {
 	return index
 }
 
-func (i *InternalServer) ReportExistingBlocks(ctx context.Context, report *proto.BlockInfoReport) (*proto.BlockInfoReportResponse, error) {
+func (i InternalServer) ReportExistingBlocks(ctx context.Context, report *proto.BlockInfoReport) (*proto.BlockInfoReportResponse, error) {
 	index := indexReport(report)
 	for path, blocks := range index {
 		err := i.FileService.UpsertBlockInfos(NewRootPrincipal(), path, blocks)
@@ -41,6 +43,8 @@ func (i *InternalServer) ReportExistingBlocks(ctx context.Context, report *proto
 			return nil, fmt.Errorf("failed to upsert block info: %w", err)
 		}
 	}
+
+	return &proto.BlockInfoReportResponse{}, nil
 }
 
 func (i InternalServer) NotifyBlocksAdded(ctx context.Context, report *proto.BlockInfoReport) (*proto.BlockInfoReportResponse, error) {
@@ -51,6 +55,8 @@ func (i InternalServer) NotifyBlocksAdded(ctx context.Context, report *proto.Blo
 			return nil, fmt.Errorf("failed to upsert block info: %w", err)
 		}
 	}
+
+	return &proto.BlockInfoReportResponse{}, nil
 }
 
 func (i InternalServer) NotifyBlocksRemoved(ctx context.Context, report *proto.BlockInfoReport) (*proto.BlockInfoReportResponse, error) {
@@ -62,5 +68,3 @@ func (i InternalServer) mustEmbedUnimplementedNameInternalServer() {
 	//TODO implement me
 	panic("implement me")
 }
-
-var _ proto.NameInternalServer = (*InternalServer)(nil)

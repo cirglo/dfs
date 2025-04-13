@@ -1,10 +1,13 @@
-package nameserver
+package main
 
 import (
 	"flag"
 	"fmt"
 	"github.com/cirglo.com/dfs/pkg/name"
+	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"net"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -15,6 +18,8 @@ import (
 
 func main() {
 	logLevelFlag := flag.String("log-level", "info", "Log Level")
+	hostFlag := flag.String("host", "localhost", "Node Host")
+	portFlag := flag.Int("port", 53035, "Port to listen on")
 	dbDriverFlag := flag.String("db-driver", "sqlite", "Database Driver (sqlite, postgres, mysql)")
 	dsnFlag := flag.String("dsn", "nameserver.db", "Data Source Name (DSN) for the database")
 	dbPoolMaxIdleConnectionsFlag := flag.Int("db-pool-max-idle-connections", 10, "Max Idle Connections in the DB Pool")
@@ -22,7 +27,6 @@ func main() {
 	dbPoolMaxLifetimeFlag := flag.Duration("db-pool-max-lifetime", 1*time.Hour, "Max Lifetime of Connections in the DB Pool")
 	dbPoolMaxIdleTimeFlag := flag.Duration("db-pool-max-idle-time", 10*time.Minute, "Max Lifetime of Connections in the DB Pool")
 	tokenExpirationFlag := flag.Duration("token-expiration", 24*time.Hour, "Token Expiration duration")
-	flag.Int("port", 50051, "Name Port")
 
 	var dialector gorm.Dialector
 
@@ -36,6 +40,7 @@ func main() {
 
 	log.SetLevel(logLevel)
 
+	log.WithField("driver", *dbDriverFlag).Info("Opening Database")
 	switch *dbDriverFlag {
 	case "sqlite":
 		dialector = sqlite.Open(*dsnFlag)
@@ -47,6 +52,7 @@ func main() {
 		log.Fatalf("Invalid database driver: %s", *dbDriverFlag)
 	}
 
+	log.WithField("driver", *dbDriverFlag).Info("Creating database connection")
 	db, err := createDB(dialector)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create database")
@@ -56,6 +62,7 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to get SQL DB")
 	}
+	log.Info("Database connection created")
 
 	sqlDB.SetMaxIdleConns(*dbPoolMaxIdleConnectionsFlag)
 	sqlDB.SetMaxOpenConns(*dbPoolMaxOpenConnectionsFlag)
@@ -66,7 +73,9 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to ping database")
 	}
+	log.Info("Database connection established")
 
+	log.Info("Creating services")
 	securityService, err := name.NewSecurityService(name.SecurityServiceOpts{
 		Logger:           log,
 		DB:               db,
@@ -76,17 +85,34 @@ func main() {
 		log.WithError(err).Fatal("Failed to create security service")
 	}
 
-	_, err = securityService.GetAllUsers()
-	if err != nil {
-		log.WithError(err).Fatal("Failed to get all users")
-	}
-
 	fileService, err := name.NewFileService(name.FileServiceOpts{
 		Logger: log,
 		DB:     db,
 	})
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create file service")
+	}
+
+	log.Info("Creating servers")
+	server := name.Server{Opts: name.ServerOpts{
+		Logger:          log,
+		SecurityService: securityService,
+		FileService:     fileService}}
+	internalServer := name.InternalServer{FileService: fileService}
+
+	log.WithField("host", *hostFlag).WithField("port", *portFlag).Info("Starting network listener")
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *hostFlag, *portFlag))
+	if err != nil {
+		log.WithError(err).Fatal("Failed to listen")
+	}
+
+	grpcServer := grpc.NewServer()
+	proto.RegisterNameServer(grpcServer, server)
+	proto.RegisterNameInternalServer(grpcServer, internalServer)
+
+	log.Info("Starting gRPC server")
+	if err := grpcServer.Serve(listener); err != nil {
+		log.WithError(err).Fatal("Failed to serve gRPC server")
 	}
 }
 
@@ -106,7 +132,6 @@ func createDB(dialector gorm.Dialector) (*gorm.DB, error) {
 		name.FileInfo{},
 		name.Permission{},
 		name.DirInfo{},
-		name.Location{},
 		name.BlockInfo{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to auto migrate: %w", err)

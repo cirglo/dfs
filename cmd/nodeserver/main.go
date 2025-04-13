@@ -7,6 +7,7 @@ import (
 	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"net"
@@ -51,7 +52,9 @@ func main() {
 		DB:           db,
 		Dir:          dir,
 		ClientConnectionFactory: func(destination string) (*grpc.ClientConn, error) {
-			return grpc.NewClient(destination)
+			return grpc.NewClient(
+				destination,
+				grpc.WithTransportCredentials(insecure.NewCredentials()))
 		},
 		ReportInterval:      *reportIntervalFlag,
 		HealthCheckInterval: *healthCheckIntervalFlag,

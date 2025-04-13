@@ -12,29 +12,28 @@ import (
 )
 
 type User struct {
-	ID             uint64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	Name           string   `gorm:"uniqueIndex"`
-	HashedPassword string   `gorm:"not null"`
-	Groups         []*Group `gorm:"many2many:user_groups;"`
+	Name           string    `gorm:"column:name;primaryKey;not null"`
+	CreatedAt      time.Time `gorm:"column:created_at"`
+	UpdatedAt      time.Time `gorm:"column:updated_at"`
+	HashedPassword string    `gorm:"column:hp;not null"`
+	Groups         []*Group  `gorm:"many2many:user_group;"`
+	Tokens         []*Token  `gorm:"foreignKey:user_name;references:name"`
 }
 
 type Group struct {
-	ID        uint64
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Name      string  `gorm:"uniqueIndex"`
-	Users     []*User `gorm:"many2many:user_groups;"`
+	Name      string    `gorm:"column:name;primaryKey;not null"`
+	CreatedAt time.Time `gorm:"column:created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at"`
+	Users     []*User   `gorm:"many2many:user_groups"`
 }
 
 type Token struct {
-	ID        uint64
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	ExpiresAt time.Time
-	Value     string `gorm:"not null"`
-	User      User   `gorm:"not null"`
+	ID        uint64    `gorm:"column:id;autoIncrement;primaryKey"`
+	CreatedAt time.Time `gorm:"column:created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at"`
+	ExpiresAt time.Time `gorm:"column:expired_at; not null"`
+	Value     string    `gorm:"column:value;not null"`
+	User      User      `gorm:"column:user_name;foreignKey:name;not null"`
 }
 
 func (t *Token) IsExpired() bool {
