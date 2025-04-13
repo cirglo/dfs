@@ -220,8 +220,3 @@ func (s Server) StatFile(ctx context.Context, request *proto.StatFileRequest) (*
 		BlockInfos: protoBlockInfos,
 	}, nil
 }
-
-func (s Server) mustEmbedUnimplementedNameServer() {
-	//TODO implement me
-	panic("implement me")
-}

@@ -8,11 +8,12 @@ all: build
 
 # Build the binary
 build:
-	go build -o build ./cmd/nodeserver/... ./pkg/... ./vendor/...
-	go build -o build ./cmd/nameserver/... ./pkg/... ./vendor/...
+	go build -o build/ ./cmd/nodeserver/... ./pkg/... ./vendor/...
+	go build -o build/ ./cmd/nameserver/... ./pkg/... ./vendor/...
 
 docker:
 	docker build -t nodeserver:latest -f docker/nodeserver.dockerfile .
+	docker build -t nameserver:latest -f docker/nameserver.dockerfile .
 
 # Clean up build artifacts
 clean:

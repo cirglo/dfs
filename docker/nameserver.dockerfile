@@ -13,9 +13,11 @@ RUN go mod download
 # Copy the source code to the working directory
 COPY . ./
 
+RUN apk add --no-cache gcc musl-dev
+
 # Build the Go application
 RUN mkdir -p build
-RUN CGO_ENABLED=1 GOOS=linux go build -o build ./cmd/nameserver/... ./pkg/... ./vendor/...
+RUN CGO_ENABLED=1 GOOS=linux go build -o build/ ./cmd/nameserver/... ./pkg/... ./vendor/...
 
 
 FROM alpine:3.21.3 AS runtime

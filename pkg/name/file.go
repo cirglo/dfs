@@ -233,7 +233,7 @@ func (f *fileService) lookupDirs(tx *gorm.DB, p Principal, path string) ([]DirIn
 		Write: false,
 	}
 
-	for name := range strings.Split(path, "/") {
+	for _, name := range strings.Split(path, "/") {
 		current := DirInfo{}
 
 		if parent == nil {

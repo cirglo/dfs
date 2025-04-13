@@ -17,10 +17,10 @@ import (
 
 func main() {
 	logLevelFlag := flag.String("log-level", "info", "Log Level")
-	nameNodeFlag := flag.String("name-node", "localhost:2379", "Name Node Address")
+	nameNodeFlag := flag.String("name-node", "localhost:53035", "Name Node Address")
 	dirFlag := flag.String("dir", "./", "Node Directory")
 	dsnFlag := flag.String("dsn", "nodeserver.db", "Data Source Name (DSN) for the database")
-	hostFlag := flag.String("host", "localhost:50051", "Node Host")
+	hostFlag := flag.String("host", "localhost:55055", "Node Host")
 	reportIntervalFlag := flag.Duration("report-interval", 10*time.Minute, "Report Interval")
 	healthCheckIntervalFlag := flag.Duration("health-check-interval", 1*time.Hour, "Health Check Interval")
 	crcCheckIntervalFlag := flag.Duration("crc-check-interval", 24*time.Hour, "CRC Check Interval")
@@ -30,50 +30,66 @@ func main() {
 	log := logrus.New()
 	logLevel, err := logrus.ParseLevel(*logLevelFlag)
 	if err != nil {
-		log.WithError(err).WithField("level", *logLevelFlag).Fatalf("Invalid log level")
+		log.WithError(err).WithField("level", *logLevelFlag).Fatal("Invalid log level")
 	}
 
 	log.SetLevel(logLevel)
 
-	dir, err := os.Stat(*dirFlag)
+	log.WithField("dir-path", *dirFlag).Info("Checking directory")
+	_, err = os.Stat(*dirFlag)
 	if err != nil {
 		log.WithError(err).WithField("dir", *dirFlag).Fatal("Directory does not exist")
 	}
 
+	log.WithField("dns", *dsnFlag).Info("Opening database")
 	db, err := createDB(sqlite.Open(*dsnFlag))
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create database")
 	}
 
-	serviceOpts := node.ServiceOpts{
-		Logger:       log,
-		Host:         *hostFlag,
-		NameNodeHost: *nameNodeFlag,
-		DB:           db,
-		Dir:          dir,
-		ClientConnectionFactory: func(destination string) (*grpc.ClientConn, error) {
-			return grpc.NewClient(
-				destination,
-				grpc.WithTransportCredentials(insecure.NewCredentials()))
-		},
-		ReportInterval:      *reportIntervalFlag,
-		HealthCheckInterval: *healthCheckIntervalFlag,
-		ValidateCRCInterval: *crcCheckIntervalFlag,
-	}
-
-	nodeService, err := node.NewService(serviceOpts)
+	log.WithField("name-node", *nameNodeFlag).Info("Connecting to name node")
+	conn, err := grpc.NewClient(
+		*nameNodeFlag,
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.WithError(err).Fatal("Failed to create service")
+		log.WithError(err).Fatal("Failed to connect to name node")
+	}
+	client := proto.NewNameInternalClient(conn)
+
+	serviceOpts := node.BlockServiceOpts{
+		Logger:     log,
+		Host:       *hostFlag,
+		DB:         db,
+		Dir:        *dirFlag,
+		NameClient: client,
 	}
 
+	log.Info("Creating block service")
+	blockService, err := node.NewBlockService(serviceOpts)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create block service")
+	}
+
+	log.Info("Reporting to name node")
+	err = blockService.Report()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to report to name node")
+	}
+
+	log.Info("Creating server")
 	nodeServer, err := node.NewServer(node.ServerOpts{
-		Logger:  log,
-		Service: nodeService,
+		Logger:       log,
+		BlockService: blockService,
+		ClientConnectionFactory: func(destination string) (*grpc.ClientConn, error) {
+			return grpc.NewClient(destination, grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+		},
 	})
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create server")
 	}
 
+	log.WithField("host", *hostFlag).Info("Creating Network listener")
 	listener, err := net.Listen("tcp", *hostFlag)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to listen")
@@ -82,9 +98,47 @@ func main() {
 	grpcServer := grpc.NewServer()
 	proto.RegisterNodeServer(grpcServer, nodeServer)
 
+	log.Info("Starting grpc server")
 	if err := grpcServer.Serve(listener); err != nil {
 		log.WithError(err).Fatal("Failed to serve gRPC server")
 	}
+
+	go func() {
+		ticker := time.NewTicker(*reportIntervalFlag)
+		for range ticker.C {
+			log.Info("Report to name node")
+			err := blockService.Report()
+			if err != nil {
+				log.WithError(err).Fatal("report to name node failed")
+			}
+			log.Info("Reported to name node")
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(*healthCheckIntervalFlag)
+		for range ticker.C {
+			log.Info("Performing health check")
+			err := blockService.HealthCheck()
+			if err != nil {
+				log.WithError(err).Fatal("health check failed")
+			}
+			log.Info("Health check done")
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(*crcCheckIntervalFlag)
+		for range ticker.C {
+			log.Info("Validating CRC")
+			err := blockService.ValidateCRC()
+			if err != nil {
+				log.WithError(err).Fatal("validate CRC failed")
+			}
+			log.Info("Finished validating CRC")
+		}
+	}()
+
 }
 
 func createDB(dialector gorm.Dialector) (*gorm.DB, error) {
