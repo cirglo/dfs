@@ -148,6 +148,10 @@ func (s *healingService) checkBlock(blockInfo BlockInfo, currentLocations []stri
 		destinations, found := s.findDestinations(currentLocations, neededCount)
 		if found {
 			for _, destination := range destinations {
+				if len(currentLocations) == 0 {
+					s.Opts.Logger.WithField("block-id", blockInfo.ID).Warn("No current locations available to select a source for block replication")
+					continue
+				}
 				source := currentLocations[rand.Intn(len(currentLocations))]
 				go s.copyBlock(blockInfo.ID, source, destination)
 			}
