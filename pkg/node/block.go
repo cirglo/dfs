@@ -310,7 +310,6 @@ func (s *service) HealthCheck() error {
 			err = s.DeleteBlock(blockInfo.ID)
 			if err != nil {
 				allErrors = append(allErrors, fmt.Errorf("failed to delete block info: %w", err))
-				break
 			}
 
 		}
