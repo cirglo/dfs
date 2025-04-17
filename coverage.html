@@ -67,35 +67,39 @@
 				
 				<option value="file5">github.com/cirglo.com/dfs/pkg/mocks/SecurityService.go (0.0%)</option>
 				
-				<option value="file6">github.com/cirglo.com/dfs/pkg/name/file.go (37.1%)</option>
+				<option value="file6">github.com/cirglo.com/dfs/pkg/name/file.go (34.6%)</option>
 				
-				<option value="file7">github.com/cirglo.com/dfs/pkg/name/notificationserver.go (0.0%)</option>
+				<option value="file7">github.com/cirglo.com/dfs/pkg/name/healing.go (0.0%)</option>
 				
-				<option value="file8">github.com/cirglo.com/dfs/pkg/name/permission.go (0.0%)</option>
+				<option value="file8">github.com/cirglo.com/dfs/pkg/name/notificationserver.go (0.0%)</option>
 				
-				<option value="file9">github.com/cirglo.com/dfs/pkg/name/principal.go (5.1%)</option>
+				<option value="file9">github.com/cirglo.com/dfs/pkg/name/permission.go (0.0%)</option>
 				
-				<option value="file10">github.com/cirglo.com/dfs/pkg/name/privileges.go (0.0%)</option>
+				<option value="file10">github.com/cirglo.com/dfs/pkg/name/principal.go (5.1%)</option>
 				
-				<option value="file11">github.com/cirglo.com/dfs/pkg/name/security.go (0.0%)</option>
+				<option value="file11">github.com/cirglo.com/dfs/pkg/name/privileges.go (0.0%)</option>
 				
-				<option value="file12">github.com/cirglo.com/dfs/pkg/name/server.go (0.0%)</option>
+				<option value="file12">github.com/cirglo.com/dfs/pkg/name/security.go (0.0%)</option>
 				
-				<option value="file13">github.com/cirglo.com/dfs/pkg/node/block.go (38.5%)</option>
+				<option value="file13">github.com/cirglo.com/dfs/pkg/name/server.go (0.0%)</option>
 				
-				<option value="file14">github.com/cirglo.com/dfs/pkg/node/server.go (0.0%)</option>
+				<option value="file14">github.com/cirglo.com/dfs/pkg/node/block.go (38.5%)</option>
 				
-				<option value="file15">github.com/cirglo.com/dfs/pkg/proto/names.pb.go (0.0%)</option>
+				<option value="file15">github.com/cirglo.com/dfs/pkg/node/server.go (0.0%)</option>
 				
-				<option value="file16">github.com/cirglo.com/dfs/pkg/proto/names_grpc.pb.go (0.0%)</option>
+				<option value="file16">github.com/cirglo.com/dfs/pkg/proto/connection.go (0.0%)</option>
 				
-				<option value="file17">github.com/cirglo.com/dfs/pkg/proto/nodes.pb.go (0.0%)</option>
+				<option value="file17">github.com/cirglo.com/dfs/pkg/proto/names.pb.go (0.0%)</option>
 				
-				<option value="file18">github.com/cirglo.com/dfs/pkg/proto/nodes_grpc.pb.go (0.0%)</option>
+				<option value="file18">github.com/cirglo.com/dfs/pkg/proto/names_grpc.pb.go (0.0%)</option>
 				
-				<option value="file19">github.com/cirglo.com/dfs/pkg/proto/notifications.pb.go (0.0%)</option>
+				<option value="file19">github.com/cirglo.com/dfs/pkg/proto/nodes.pb.go (0.0%)</option>
 				
-				<option value="file20">github.com/cirglo.com/dfs/pkg/proto/notifications_grpc.pb.go (0.0%)</option>
+				<option value="file20">github.com/cirglo.com/dfs/pkg/proto/nodes_grpc.pb.go (0.0%)</option>
+				
+				<option value="file21">github.com/cirglo.com/dfs/pkg/proto/notifications.pb.go (0.0%)</option>
+				
+				<option value="file22">github.com/cirglo.com/dfs/pkg/proto/notifications_grpc.pb.go (0.0%)</option>
 				
 				</select>
 			</div>
@@ -138,7 +142,9 @@ func main() <span class="cov0" title="0">{
         dbPoolMaxLifetimeFlag := flag.Duration("db-pool-max-lifetime", 1*time.Hour, "Max Lifetime of Connections in the DB Pool")
         dbPoolMaxIdleTimeFlag := flag.Duration("db-pool-max-idle-time", 10*time.Minute, "Max Lifetime of Connections in the DB Pool")
         tokenExpirationFlag := flag.Duration("token-expiration", 24*time.Hour, "Token Expiration duration")
-
+        numReplicasFlag := flag.Uint("num-replicas", 1, "Number of replicas")
+        nodeExpirationFlag := flag.Duration("node-expiration", 15*time.Minute, "Node Expiration duration")
+        healingIntervalFlag := flag.Duration("healing-internval", 1*time.Minute, "Healing interval")
         var dialector gorm.Dialector
 
         flag.Parse()
@@ -204,12 +210,27 @@ func main() <span class="cov0" title="0">{
                 log.WithError(err).Fatal("Failed to create file service")
         }</span>
 
-        <span class="cov0" title="0">log.Info("Creating servers")
+        <span class="cov0" title="0">log.Info("Creating server")
         server := name.Server{Opts: name.ServerOpts{
                 Logger:          log,
                 SecurityService: securityService,
                 FileService:     fileService}}
-        notificationServer := name.NotificationServer{FileService: fileService}
+
+        healingService, err := name.NewHealingService(name.HealingOpts{
+                Logger:            nil,
+                NumReplicas:       *numReplicasFlag,
+                FileService:       fileService,
+                NodeExpiration:    *nodeExpirationFlag,
+                ConnectionFactory: proto.NewInsecureConnectionFactory(),
+        })
+        if err != nil </span><span class="cov0" title="0">{
+                log.WithError(err).Fatal("Failed to create healing service")
+        }</span>
+
+        <span class="cov0" title="0">notificationServer := name.NotificationServer{
+                FileService:    fileService,
+                HealingService: healingService,
+        }
 
         log.WithField("host", *hostFlag).WithField("port", *portFlag).Info("Starting network listener")
         listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *hostFlag, *portFlag))
@@ -221,7 +242,15 @@ func main() <span class="cov0" title="0">{
         proto.RegisterNameServer(grpcServer, server)
         proto.RegisterNotificationServer(grpcServer, notificationServer)
 
-        log.Info("Starting gRPC server")
+        go func() </span><span class="cov0" title="0">{
+                t := time.NewTicker(*healingIntervalFlag)
+                for range t.C </span><span class="cov0" title="0">{
+                        err := healingService.Heal(time.Now())
+                        log.WithError(err).Info("Healing failed")
+                }</span>
+        }()
+
+        <span class="cov0" title="0">log.Info("Starting gRPC server")
         if err := grpcServer.Serve(listener); err != nil </span><span class="cov0" title="0">{
                 log.WithError(err).Fatal("Failed to serve gRPC server")
         }</span>
@@ -260,7 +289,6 @@ import (
         "github.com/cirglo.com/dfs/pkg/proto"
         "github.com/sirupsen/logrus"
         "google.golang.org/grpc"
-        "google.golang.org/grpc/credentials/insecure"
         "gorm.io/driver/sqlite"
         "gorm.io/gorm"
         "net"
@@ -300,10 +328,10 @@ func main() <span class="cov0" title="0">{
                 log.WithError(err).Fatal("Failed to create database")
         }</span>
 
-        <span class="cov0" title="0">log.WithField("name-node", *nameNodeFlag).Info("Connecting to name node")
-        conn, err := grpc.NewClient(
-                *nameNodeFlag,
-                grpc.WithTransportCredentials(insecure.NewCredentials()))
+        <span class="cov0" title="0">connectionFactory := proto.NewInsecureConnectionFactory()
+
+        log.WithField("name-node", *nameNodeFlag).Info("Connecting to name node")
+        conn, err := connectionFactory(*nameNodeFlag)
         if err != nil </span><span class="cov0" title="0">{
                 log.WithError(err).Fatal("Failed to connect to name node")
         }</span>
@@ -331,14 +359,11 @@ func main() <span class="cov0" title="0">{
 
         <span class="cov0" title="0">log.Info("Creating server")
         nodeServer, err := node.NewServer(node.ServerOpts{
-                Logger:       log,
-                BlockService: blockService,
-                ClientConnectionFactory: func(destination string) (*grpc.ClientConn, error) </span><span class="cov0" title="0">{
-                        return grpc.NewClient(destination, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
-                }</span>,
+                Logger:            log,
+                BlockService:      blockService,
+                ConnectionFactory: connectionFactory,
         })
-        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov0" title="0">{
                 log.WithError(err).Fatal("Failed to create server")
         }</span>
 
@@ -2464,6 +2489,8 @@ type FileService interface {
         NotifyBlockPresent(n *proto.NotifyBlockPresentRequest) error
         NotifyBlockAdded(n *proto.NotifyBlockAddedRequest) error
         NotifyBlockRemoved(n *proto.NotifyBlockRemovedRequest) error
+        NodeRemoved(host string) error
+        GetAllBlockInfos() ([]BlockInfo, error)
 }
 
 type FileInfo struct {
@@ -3250,39 +3277,310 @@ func (f *fileService) NotifyBlockRemoved(n *proto.NotifyBlockRemovedRequest) err
 
         <span class="cov0" title="0">return nil</span>
 }
+
+func (f *fileService) NodeRemoved(host string) error <span class="cov0" title="0">{
+        err := f.Opts.DB.Transaction(func(tx *gorm.DB) error </span><span class="cov0" title="0">{
+                blockInfos := []BlockInfo{}
+
+                err := tx.Find(&amp;blockInfos).Error
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("could not get blocks: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">for _, blockInfo := range blockInfos </span><span class="cov0" title="0">{
+                        for _, location := range blockInfo.Locations </span><span class="cov0" title="0">{
+                                if location.Host == host </span><span class="cov0" title="0">{
+                                        err = tx.Delete(&amp;location).Error
+                                        if err != nil </span><span class="cov0" title="0">{
+                                                return fmt.Errorf("could not delete location %v: %w", location, err)
+                                        }</span>
+                                }
+                        }
+                }
+
+                <span class="cov0" title="0">return nil</span>
+        })
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("could not remove node '%s': %w", host, err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (f *fileService) GetAllBlockInfos() ([]BlockInfo, error) <span class="cov0" title="0">{
+        blockInfos := []BlockInfo{}
+
+        err := f.Opts.DB.Transaction(func(tx *gorm.DB) error </span><span class="cov0" title="0">{
+                err := tx.Find(&amp;blockInfos).Error
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">return nil</span>
+        }, &amp;sql.TxOptions{ReadOnly: true})
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return blockInfos, fmt.Errorf("could not get block infos: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return blockInfos, nil</span>
+}
 </pre>
 		
 		<pre class="file" id="file7" style="display: none">package name
 
 import (
         "context"
+        "errors"
+        "fmt"
         "github.com/cirglo.com/dfs/pkg/proto"
+        "github.com/sirupsen/logrus"
+        "math/rand"
+        "slices"
+        "sync"
+        "time"
+)
+
+type HealingOpts struct {
+        Logger            *logrus.Logger
+        NumReplicas       uint
+        FileService       FileService
+        NodeExpiration    time.Duration
+        ConnectionFactory proto.ConnectionFactory
+}
+
+func (o *HealingOpts) Validate() error <span class="cov0" title="0">{
+        if o.Logger == nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("logger is required")
+        }</span>
+
+        <span class="cov0" title="0">if o.NumReplicas &gt;= 255 </span><span class="cov0" title="0">{
+                return fmt.Errorf("number of replicas must be less than 256")
+        }</span>
+
+        <span class="cov0" title="0">if o.NumReplicas == 0 </span><span class="cov0" title="0">{
+                return fmt.Errorf("num replicas is required")
+        }</span>
+
+        <span class="cov0" title="0">if o.FileService == nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("fileService is required")
+        }</span>
+
+        <span class="cov0" title="0">if o.ConnectionFactory == nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("connection factory is required")
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+type HealingService interface {
+        NotifyNodeAlive(host string, at time.Time)
+        Heal(since time.Time) error
+}
+
+type healingService struct {
+        Opts  HealingOpts
+        Nodes map[string]time.Time
+        Lock  sync.RWMutex
+}
+
+var _ HealingService = &amp;healingService{}
+
+func NewHealingService(opts HealingOpts) (HealingService, error) <span class="cov0" title="0">{
+        err := opts.Validate()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid options: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return &amp;healingService{
+                Opts:  opts,
+                Nodes: map[string]time.Time{},
+                Lock:  sync.RWMutex{},
+        }, nil</span>
+}
+
+func (s *healingService) NotifyNodeAlive(host string, at time.Time) <span class="cov0" title="0">{
+        s.Lock.Lock()
+        defer s.Lock.Unlock()
+
+        s.Nodes[host] = at
+}</span>
+
+func (s *healingService) Heal(since time.Time) error <span class="cov0" title="0">{
+        removedHosts := s.removeExpiredNodes(since)
+        var allErrors []error
+        for _, host := range removedHosts </span><span class="cov0" title="0">{
+                s.Opts.Logger.WithField("host", host).Info("Removing expired node")
+                err := s.Opts.FileService.NodeRemoved(host)
+                allErrors = append(allErrors, err)
+        }</span>
+
+        <span class="cov0" title="0">blockInfos, err := s.Opts.FileService.GetAllBlockInfos()
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("could not get block infos: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">currentLocations := map[string][]string{}
+
+        for _, blockInfo := range blockInfos </span><span class="cov0" title="0">{
+                id := blockInfo.ID
+                currentLocations[id] = []string{}
+
+                for _, location := range blockInfo.Locations </span><span class="cov0" title="0">{
+                        host := location.Host
+                        currentLocations[id] = append(currentLocations[id], host)
+                        slices.Sort(currentLocations[id])
+                }</span>
+        }
+
+        <span class="cov0" title="0">for _, blockInfo := range blockInfos </span><span class="cov0" title="0">{
+                s.checkBlock(blockInfo, currentLocations[blockInfo.ID])
+        }</span>
+
+        <span class="cov0" title="0">return errors.Join(allErrors...)</span>
+}
+
+func (s *healingService) removeExpiredNodes(since time.Time) []string <span class="cov0" title="0">{
+        s.Lock.Lock()
+        defer s.Lock.Unlock()
+
+        var toRemove []string
+
+        for host, at := range s.Nodes </span><span class="cov0" title="0">{
+                expiration := at.Add(s.Opts.NodeExpiration)
+                if expiration.Before(since) </span><span class="cov0" title="0">{
+                        toRemove = append(toRemove, host)
+                }</span>
+        }
+
+        <span class="cov0" title="0">for _, host := range toRemove </span><span class="cov0" title="0">{
+                s.Opts.Logger.WithField("host", host).Info("node is dead")
+                delete(s.Nodes, host)
+        }</span>
+
+        <span class="cov0" title="0">return toRemove</span>
+}
+
+func (s *healingService) checkBlock(blockInfo BlockInfo, currentLocations []string) <span class="cov0" title="0">{
+        s.Lock.RLock()
+        defer s.Lock.RUnlock()
+
+        neededCount := int(s.Opts.NumReplicas) - len(blockInfo.Locations)
+
+        if neededCount &gt; 0 </span><span class="cov0" title="0">{
+                s.Opts.Logger.WithFields(logrus.Fields{
+                        "block-id":                  blockInfo.ID,
+                        "mandatory-replicas-count":  s.Opts.NumReplicas,
+                        "replicas-count":            len(blockInfo.Locations),
+                        "needed-new-replicas-count": neededCount,
+                }).Info("Block needs more replicas")
+                destinations, found := s.findDestinations(currentLocations, neededCount)
+                if found </span><span class="cov0" title="0">{
+                        for _, destination := range destinations </span><span class="cov0" title="0">{
+                                source := currentLocations[rand.Intn(len(currentLocations))]
+                                go s.copyBlock(blockInfo.ID, source, destination)
+                        }</span>
+                }
+        }
+}
+
+func (s *healingService) findDestinations(currentLocations []string, count int) ([]string, bool) <span class="cov0" title="0">{
+        var candidates []string
+
+        for location := range s.Nodes </span><span class="cov0" title="0">{
+                _, found := slices.BinarySearch(currentLocations, location)
+                if !found </span><span class="cov0" title="0">{
+                        candidates = append(candidates, location)
+                }</span>
+        }
+
+        <span class="cov0" title="0">if len(candidates) &lt; count </span><span class="cov0" title="0">{
+                return nil, false
+        }</span>
+
+        <span class="cov0" title="0">shuffle(candidates)
+
+        return candidates[:count], true</span>
+}
+
+func (s *healingService) copyBlock(blockId string, source string, dest string) <span class="cov0" title="0">{
+        connection, err := s.Opts.ConnectionFactory(source)
+        if err != nil </span><span class="cov0" title="0">{
+                s.Opts.Logger.WithError(err).WithField("host", dest).Error("could not create connection")
+        }</span>
+        <span class="cov0" title="0">defer connection.Close()
+
+        client := proto.NewNodeClient(connection)
+
+        s.Opts.Logger.WithFields(logrus.Fields{
+                "source":      source,
+                "destination": dest,
+                "block-id":    blockId,
+        }).Info("Copying block")
+        _, err = client.CopyBlock(context.Background(), &amp;proto.CopyBlockRequest{
+                Id:          blockId,
+                Destination: dest,
+        })
+        if err != nil </span><span class="cov0" title="0">{
+                s.Opts.Logger.
+                        WithError(err).
+                        WithFields(logrus.Fields{
+                                "block-id":    blockId,
+                                "source":      source,
+                                "destination": dest,
+                        }).
+                        Error("unable to copy block")
+        }</span> else<span class="cov0" title="0"> {
+                s.Opts.Logger.WithFields(logrus.Fields{
+                        "source":      source,
+                        "destination": dest,
+                        "block-id":    blockId,
+                }).Info("block copied")
+        }</span>
+}
+
+func shuffle(slice []string) <span class="cov0" title="0">{
+        for i := range slice </span><span class="cov0" title="0">{
+                j := rand.Intn(len(slice))
+                slice[i], slice[j] = slice[j], slice[i]
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package name
+
+import (
+        "context"
+        "github.com/cirglo.com/dfs/pkg/proto"
+        "time"
 )
 
 type NotificationServer struct {
         proto.UnimplementedNotificationServer
-        FileService FileService
+        FileService    FileService
+        HealingService HealingService
 }
 
 var _ proto.NotificationServer = (*NotificationServer)(nil)
 
 func (n NotificationServer) NotifyBlockPresent(ctx context.Context, request *proto.NotifyBlockPresentRequest) (*proto.NotifyBlockPresentResponse, error) <span class="cov0" title="0">{
+        n.HealingService.NotifyNodeAlive(request.Host, time.Now())
         err := n.FileService.NotifyBlockPresent(request)
         return &amp;proto.NotifyBlockPresentResponse{}, err
 }</span>
 
 func (n NotificationServer) NotifyBlockAdded(ctx context.Context, request *proto.NotifyBlockAddedRequest) (*proto.NotifyBlockAddedRequest, error) <span class="cov0" title="0">{
+        n.HealingService.NotifyNodeAlive(request.Host, time.Now())
         err := n.FileService.NotifyBlockAdded(request)
         return &amp;proto.NotifyBlockAddedRequest{}, err
 }</span>
 
 func (n NotificationServer) NotifyBlockRemoved(ctx context.Context, request *proto.NotifyBlockRemovedRequest) (*proto.NotifyBlockRemovedResponse, error) <span class="cov0" title="0">{
+        n.HealingService.NotifyNodeAlive(request.Host, time.Now())
         err := n.FileService.NotifyBlockRemoved(request)
         return &amp;proto.NotifyBlockRemovedResponse{}, err
 }</span>
 </pre>
 		
-		<pre class="file" id="file8" style="display: none">package name
+		<pre class="file" id="file9" style="display: none">package name
 
 import (
         "fmt"
@@ -3324,7 +3622,7 @@ func (p *Permissions) BeforeSave(_ *gorm.DB) error <span class="cov0" title="0">
 }
 </pre>
 		
-		<pre class="file" id="file9" style="display: none">package name
+		<pre class="file" id="file10" style="display: none">package name
 
 type Principal interface {
         ComputePrivileges(hasPermissionsList ...HasPermissions) Privileges
@@ -3446,7 +3744,7 @@ func (p rootPrincipal) ComputePrivileges(_ ...HasPermissions) Privileges <span c
 }</span>
 </pre>
 		
-		<pre class="file" id="file10" style="display: none">package name
+		<pre class="file" id="file11" style="display: none">package name
 
 type Privileges struct {
         Read   bool
@@ -3463,7 +3761,7 @@ func (p Privileges) Union(o Privileges) Privileges <span class="cov0" title="0">
 }</span>
 </pre>
 		
-		<pre class="file" id="file11" style="display: none">package name
+		<pre class="file" id="file12" style="display: none">package name
 
 import (
         "crypto/rand"
@@ -3933,7 +4231,7 @@ func (s *securityService) IsTokenValid(token string, userName string) bool <span
 }
 </pre>
 		
-		<pre class="file" id="file12" style="display: none">package name
+		<pre class="file" id="file13" style="display: none">package name
 
 import (
         "context"
@@ -4136,7 +4434,7 @@ func (s Server) Stat(ctx context.Context, request *proto.StatRequest) (*proto.St
 }
 </pre>
 		
-		<pre class="file" id="file13" style="display: none">package node
+		<pre class="file" id="file14" style="display: none">package node
 
 import (
         "context"
@@ -4543,20 +4841,19 @@ func (s *service) ValidateCRC() error <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file14" style="display: none">package node
+		<pre class="file" id="file15" style="display: none">package node
 
 import (
         "context"
         "fmt"
         "github.com/cirglo.com/dfs/pkg/proto"
         "github.com/sirupsen/logrus"
-        "google.golang.org/grpc"
 )
 
 type ServerOpts struct {
-        Logger                  *logrus.Logger
-        BlockService            BlockService
-        ClientConnectionFactory func(destination string) (*grpc.ClientConn, error)
+        Logger            *logrus.Logger
+        BlockService      BlockService
+        ConnectionFactory proto.ConnectionFactory
 }
 
 func (s ServerOpts) Validate() error <span class="cov0" title="0">{
@@ -4566,7 +4863,7 @@ func (s ServerOpts) Validate() error <span class="cov0" title="0">{
         <span class="cov0" title="0">if s.BlockService == nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("no service provided")
         }</span>
-        <span class="cov0" title="0">if s.ClientConnectionFactory == nil </span><span class="cov0" title="0">{
+        <span class="cov0" title="0">if s.ConnectionFactory == nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("no client connection factory provided")
         }</span>
         <span class="cov0" title="0">return nil</span>
@@ -4678,7 +4975,7 @@ func (s *server) CopyBlock(ctx context.Context, request *proto.CopyBlockRequest)
                 return nil, fmt.Errorf("failed to read data for block id %s : %w", blockInfo.ID, err)
         }</span>
 
-        <span class="cov0" title="0">conn, err := s.opts.ClientConnectionFactory(request.GetDestination())
+        <span class="cov0" title="0">conn, err := s.opts.ConnectionFactory(request.GetDestination())
         if err != nil </span><span class="cov0" title="0">{
                 return nil, fmt.Errorf("failed to connect to destination node: %w", err)
         }</span>
@@ -4698,7 +4995,23 @@ func (s *server) CopyBlock(ctx context.Context, request *proto.CopyBlockRequest)
 }
 </pre>
 		
-		<pre class="file" id="file15" style="display: none">// Code generated by protoc-gen-go. DO NOT EDIT.
+		<pre class="file" id="file16" style="display: none">package proto
+
+import (
+        "google.golang.org/grpc"
+        "google.golang.org/grpc/credentials/insecure"
+)
+
+type ConnectionFactory func(host string) (*grpc.ClientConn, error)
+
+func NewInsecureConnectionFactory() ConnectionFactory <span class="cov0" title="0">{
+        return func(host string) (*grpc.ClientConn, error) </span><span class="cov0" title="0">{
+                return grpc.NewClient(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file17" style="display: none">// Code generated by protoc-gen-go. DO NOT EDIT.
 // versions:
 //         protoc-gen-go v1.36.6
 //         protoc        v5.29.3
@@ -5975,7 +6288,7 @@ func file_names_proto_init() <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file16" style="display: none">// Code generated by protoc-gen-go-grpc. DO NOT EDIT.
+		<pre class="file" id="file18" style="display: none">// Code generated by protoc-gen-go-grpc. DO NOT EDIT.
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
@@ -6364,7 +6677,7 @@ var Name_ServiceDesc = grpc.ServiceDesc{
 }
 </pre>
 		
-		<pre class="file" id="file17" style="display: none">// Code generated by protoc-gen-go. DO NOT EDIT.
+		<pre class="file" id="file19" style="display: none">// Code generated by protoc-gen-go. DO NOT EDIT.
 // versions:
 //         protoc-gen-go v1.36.6
 //         protoc        v5.29.3
@@ -7124,7 +7437,7 @@ func file_nodes_proto_init() <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file18" style="display: none">// Code generated by protoc-gen-go-grpc. DO NOT EDIT.
+		<pre class="file" id="file20" style="display: none">// Code generated by protoc-gen-go-grpc. DO NOT EDIT.
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
@@ -7437,7 +7750,7 @@ var Node_ServiceDesc = grpc.ServiceDesc{
 }
 </pre>
 		
-		<pre class="file" id="file19" style="display: none">// Code generated by protoc-gen-go. DO NOT EDIT.
+		<pre class="file" id="file21" style="display: none">// Code generated by protoc-gen-go. DO NOT EDIT.
 // versions:
 //         protoc-gen-go v1.36.6
 //         protoc        v5.29.3
@@ -7888,7 +8201,7 @@ func file_notifications_proto_init() <span class="cov0" title="0">{
 }
 </pre>
 		
-		<pre class="file" id="file20" style="display: none">// Code generated by protoc-gen-go-grpc. DO NOT EDIT.
+		<pre class="file" id="file22" style="display: none">// Code generated by protoc-gen-go-grpc. DO NOT EDIT.
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3

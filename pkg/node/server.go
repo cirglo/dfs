@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 )
 
 type ServerOpts struct {
-	Logger                  *logrus.Logger
-	BlockService            BlockService
-	ClientConnectionFactory func(destination string) (*grpc.ClientConn, error)
+	Logger            *logrus.Logger
+	BlockService      BlockService
+	ConnectionFactory proto.ConnectionFactory
 }
 
 func (s ServerOpts) Validate() error {
@@ -21,7 +20,7 @@ func (s ServerOpts) Validate() error {
 	if s.BlockService == nil {
 		return fmt.Errorf("no service provided")
 	}
-	if s.ClientConnectionFactory == nil {
+	if s.ConnectionFactory == nil {
 		return fmt.Errorf("no client connection factory provided")
 	}
 	return nil
@@ -133,7 +132,7 @@ func (s *server) CopyBlock(ctx context.Context, request *proto.CopyBlockRequest)
 		return nil, fmt.Errorf("failed to read data for block id %s : %w", blockInfo.ID, err)
 	}
 
-	conn, err := s.opts.ClientConnectionFactory(request.GetDestination())
+	conn, err := s.opts.ConnectionFactory(request.GetDestination())
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to destination node: %w", err)
 	}
