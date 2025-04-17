@@ -40,7 +40,8 @@ lint:
 
 # Test the application
 test:
-	go test ./...
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
 
 generate:
 	go generate ./...
