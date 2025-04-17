@@ -100,10 +100,12 @@ func (s *healingService) Heal(since time.Time) error {
 		for _, location := range blockInfo.Locations {
 			host := location.Host
 			currentLocations[id] = append(currentLocations[id], host)
-			slices.Sort(currentLocations[id])
 		}
 	}
 
+	for id := range currentLocations {
+		slices.Sort(currentLocations[id])
+	}
 	for _, blockInfo := range blockInfos {
 		s.checkBlock(blockInfo, currentLocations[blockInfo.ID])
 	}
