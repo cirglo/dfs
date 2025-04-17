@@ -178,7 +178,7 @@ func (s *healingService) copyBlock(blockId string, source string, dest string) {
 	connection, err := s.Opts.ConnectionFactory(source)
 	if err != nil {
 		s.Opts.Logger.WithError(err).WithField("host", dest).Error("could not create connection")
-	}
+		return
 	defer connection.Close()
 
 	client := proto.NewNodeClient(connection)
