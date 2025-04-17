@@ -102,7 +102,7 @@ func main() {
 		FileService:     fileService}}
 
 	healingService, err := name.NewHealingService(name.HealingOpts{
-		Logger:            nil,
+		Logger:            log,
 		NumReplicas:       *numReplicasFlag,
 		FileService:       fileService,
 		NodeExpiration:    *nodeExpirationFlag,

@@ -144,7 +144,7 @@ func main() <span class="cov0" title="0">{
         tokenExpirationFlag := flag.Duration("token-expiration", 24*time.Hour, "Token Expiration duration")
         numReplicasFlag := flag.Uint("num-replicas", 1, "Number of replicas")
         nodeExpirationFlag := flag.Duration("node-expiration", 15*time.Minute, "Node Expiration duration")
-        healingIntervalFlag := flag.Duration("healing-internval", 1*time.Minute, "Healing interval")
+        healingIntervalFlag := flag.Duration("healing-interval", 1*time.Minute, "Healing interval")
         var dialector gorm.Dialector
 
         flag.Parse()
@@ -217,7 +217,7 @@ func main() <span class="cov0" title="0">{
                 FileService:     fileService}}
 
         healingService, err := name.NewHealingService(name.HealingOpts{
-                Logger:            nil,
+                Logger:            log,
                 NumReplicas:       *numReplicasFlag,
                 FileService:       fileService,
                 NodeExpiration:    *nodeExpirationFlag,
@@ -3475,9 +3475,13 @@ func (s *healingService) checkBlock(blockInfo BlockInfo, currentLocations []stri
                 destinations, found := s.findDestinations(currentLocations, neededCount)
                 if found </span><span class="cov0" title="0">{
                         for _, destination := range destinations </span><span class="cov0" title="0">{
-                                source := currentLocations[rand.Intn(len(currentLocations))]
-                                go s.copyBlock(blockInfo.ID, source, destination)
-                        }</span>
+                                if len(currentLocations) == 0 </span><span class="cov0" title="0">{
+                                        s.Opts.Logger.WithField("block-id", blockInfo.ID).Warn("No current locations available to select a source for block replication")
+                                        continue</span>
+                                }
+                                <span class="cov0" title="0">source := currentLocations[rand.Intn(len(currentLocations))]
+                                go s.copyBlock(blockInfo.ID, source, destination)</span>
+                        }
                 }
         }
 }
@@ -3505,6 +3509,7 @@ func (s *healingService) copyBlock(blockId string, source string, dest string) <
         connection, err := s.Opts.ConnectionFactory(source)
         if err != nil </span><span class="cov0" title="0">{
                 s.Opts.Logger.WithError(err).WithField("host", dest).Error("could not create connection")
+                return
         }</span>
         <span class="cov0" title="0">defer connection.Close()
 
