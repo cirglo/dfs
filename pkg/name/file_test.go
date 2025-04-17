@@ -31,7 +31,7 @@ func createDB(t *testing.T) *gorm.DB {
 
 func createLogger(t *testing.T) *logrus.Logger {
 	log := logrus.New()
-	log.SetLevel(logrus.FatalLevel)
+	log.SetLevel(logrus.DebugLevel)
 
 	return log
 }
@@ -50,7 +50,7 @@ func TestFileService_GetRootDir(t *testing.T) {
 	dir, err := service.Stat(p, "/")
 	assert.NoError(t, err)
 	assert.Equal(t, "", dir.Name)
-	assert.Nil(t, dir.Parent)
+	assert.Nil(t, dir.ParentID)
 	assert.Len(t, dir.Children, 0)
 }
 
@@ -62,16 +62,19 @@ func TestFileService_CreateFile(t *testing.T) {
 		Owner: "joe",
 		Group: "staff",
 		OwnerPermission: name.Permission{
-			Read:  true,
-			Write: true,
+			Read:   true,
+			Write:  true,
+			Delete: true,
 		},
 		GroupPermission: name.Permission{
-			Read:  true,
-			Write: false,
+			Read:   true,
+			Write:  false,
+			Delete: true,
 		},
 		OtherPermission: name.Permission{
-			Read:  false,
-			Write: false,
+			Read:   false,
+			Write:  false,
+			Delete: true,
 		},
 	}
 
@@ -85,8 +88,31 @@ func TestFileService_CreateFile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, dirs, 0)
 
+	rootFi, err := service.Stat(p, "/")
+	assert.NoError(t, err)
+	assert.Equal(t, "", rootFi.Name)
+	assert.True(t, rootFi.IsDir)
+	assert.Nil(t, rootFi.ParentID)
+
 	fi, err := service.CreateFile(p, "/hello.txt", perms)
 	assert.NoError(t, err)
-	assert.Equal(t, "/hello.txt", fi.Name)
+	assert.Equal(t, "hello.txt", fi.Name)
 	assert.Equal(t, perms, fi.Permissions)
+
+	dirs, err = service.List(p, "/")
+	assert.NoError(t, err)
+	assert.Len(t, dirs, 1)
+
+	fi, err = service.Stat(p, "/hello.txt")
+	assert.NoError(t, err)
+	assert.Equal(t, "hello.txt", fi.Name)
+	assert.False(t, fi.IsDir)
+	assert.Equal(t, rootFi.ID, *fi.ParentID)
+
+	err = service.DeleteFile(p, "/hello.txt")
+	assert.NoError(t, err)
+
+	dirs, err = service.List(p, "/")
+	assert.NoError(t, err)
+	assert.Len(t, dirs, 0)
 }

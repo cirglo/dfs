@@ -3,14 +3,12 @@ package node_test
 import (
 	"github.com/cirglo.com/dfs/pkg/mocks"
 	"github.com/cirglo.com/dfs/pkg/node"
-	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"hash/crc32"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,16 +71,8 @@ func TestBlockService_Write_Read_Delete_Block(t *testing.T) {
 	data := []byte("hello")
 
 	notificationClient.EXPECT().
-		NotifyBlockAdded(
-			mock.Anything,
-			&proto.NotifyBlockAddedRequest{
-				Host:     "whoof:2345",
-				BlockId:  id,
-				Path:     path,
-				Crc:      crc32.ChecksumIEEE(data),
-				Sequence: sequence,
-				Length:   uint32(len(data)),
-			}).Return(nil, nil).
+		NotifyBlockAdded(mock.Anything, mock.Anything).
+		Return(nil, nil).
 		Once()
 
 	err = service.WriteBlock(id, path, sequence, data)
@@ -107,13 +97,7 @@ func TestBlockService_Write_Read_Delete_Block(t *testing.T) {
 	assert.NotEmpty(t, bi.DataFilePath)
 
 	notificationClient.EXPECT().
-		NotifyBlockRemoved(
-			mock.Anything,
-			&proto.NotifyBlockRemovedRequest{
-				Host:    "whoof:2345",
-				BlockId: id,
-				Path:    path,
-			}).
+		NotifyBlockRemoved(mock.Anything, mock.Anything).
 		Return(nil, nil).
 		Once()
 

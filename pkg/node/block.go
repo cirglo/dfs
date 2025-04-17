@@ -11,6 +11,7 @@ import (
 	"hash/crc32"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type BlockService interface {
@@ -25,13 +26,38 @@ type BlockService interface {
 }
 
 type BlockInfo struct {
-	ID           string `gorm:"column:id;primaryKey;uniqueIndex:idx_block_info;not null"`
-	Sequence     uint64 `gorm:"column:sequence;not null;uniqueIndex:idx_block_info'"`
-	Length       uint32 `gorm:"column:length;not null"`
-	Path         string `gorm:"column:path;not null"`
-	DataFilePath string `gorm:"column:data_file_path;not null"`
-	CRC          uint32 `gorm:"column:crc;not null"`
+	ID           string `gorm:"primaryKey;uniqueIndex:idx_block_info;not null"`
+	Sequence     uint64 `gorm:"not null;uniqueIndex:idx_block_info'"`
+	Length       uint32 `gorm:"not null"`
+	Path         string `gorm:"not null"`
+	DataFilePath string `gorm:"not null"`
+	CRC          uint32 `gorm:"not null"`
 }
+
+func (bi *BlockInfo) BeforeSave(_ *gorm.DB) error {
+	bi.ID = strings.TrimSpace(bi.ID)
+	bi.Path = strings.TrimSpace(bi.Path)
+	bi.DataFilePath = strings.TrimSpace(bi.DataFilePath)
+
+	if len(bi.ID) == 0 {
+		return fmt.Errorf("block id is empty")
+	}
+
+	if len(bi.Path) == 0 {
+		return fmt.Errorf("path is empty")
+	}
+
+	if len(bi.DataFilePath) == 0 {
+		return fmt.Errorf("data file path is empty")
+	}
+
+	if bi.Length == 0 {
+		return fmt.Errorf("length is zero")
+	}
+
+	return nil
+}
+
 type BlockServiceOpts struct {
 	Logger             *logrus.Logger
 	Host               string
@@ -303,7 +329,7 @@ func (s *service) ValidateCRC() error {
 		crc    uint32
 		length uint32
 	}
-	var pathRecords map[string]record
+	pathRecords := map[string]record{}
 
 	files, err := os.ReadDir(s.opts.Dir)
 	if err != nil {
