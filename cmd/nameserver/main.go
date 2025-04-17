@@ -131,8 +131,9 @@ func main() {
 		t := time.NewTicker(*healingIntervalFlag)
 		for range t.C {
 			err := healingService.Heal(time.Now())
-			log.WithError(err).Info("Healing failed")
-		}
+			if err != nil {
+				log.WithError(err).Info("Healing failed")
+			}
 	}()
 
 	log.Info("Starting gRPC server")
