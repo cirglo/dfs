@@ -3427,10 +3427,12 @@ func (s *healingService) Heal(since time.Time) error <span class="cov0" title="0
                 for _, location := range blockInfo.Locations </span><span class="cov0" title="0">{
                         host := location.Host
                         currentLocations[id] = append(currentLocations[id], host)
-                        slices.Sort(currentLocations[id])
                 }</span>
         }
 
+        <span class="cov0" title="0">for id := range currentLocations </span><span class="cov0" title="0">{
+                slices.Sort(currentLocations[id])
+        }</span>
         <span class="cov0" title="0">for _, blockInfo := range blockInfos </span><span class="cov0" title="0">{
                 s.checkBlock(blockInfo, currentLocations[blockInfo.ID])
         }</span>
