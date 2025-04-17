@@ -29,7 +29,7 @@ func main() {
 	tokenExpirationFlag := flag.Duration("token-expiration", 24*time.Hour, "Token Expiration duration")
 	numReplicasFlag := flag.Uint("num-replicas", 1, "Number of replicas")
 	nodeExpirationFlag := flag.Duration("node-expiration", 15*time.Minute, "Node Expiration duration")
-	healingIntervalFlag := flag.Duration("healing-internval", 1*time.Minute, "Healing interval")
+	healingIntervalFlag := flag.Duration("healing-interval", 1*time.Minute, "Healing interval")
 	var dialector gorm.Dialector
 
 	flag.Parse()
