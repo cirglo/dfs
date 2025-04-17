@@ -29,7 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NotificationClient interface {
 	NotifyBlockPresent(ctx context.Context, in *NotifyBlockPresentRequest, opts ...grpc.CallOption) (*NotifyBlockPresentResponse, error)
-	NotifyBlockAdded(ctx context.Context, in *NotifyBlockAddedRequest, opts ...grpc.CallOption) (*NotifyBlockAddedRequest, error)
+	NotifyBlockAdded(ctx context.Context, in *NotifyBlockAddedRequest, opts ...grpc.CallOption) (*NotifyBlockAddedResponse, error)
 	NotifyBlockRemoved(ctx context.Context, in *NotifyBlockRemovedRequest, opts ...grpc.CallOption) (*NotifyBlockRemovedResponse, error)
 }
 
@@ -51,9 +51,9 @@ func (c *notificationClient) NotifyBlockPresent(ctx context.Context, in *NotifyB
 	return out, nil
 }
 
-func (c *notificationClient) NotifyBlockAdded(ctx context.Context, in *NotifyBlockAddedRequest, opts ...grpc.CallOption) (*NotifyBlockAddedRequest, error) {
+func (c *notificationClient) NotifyBlockAdded(ctx context.Context, in *NotifyBlockAddedRequest, opts ...grpc.CallOption) (*NotifyBlockAddedResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(NotifyBlockAddedRequest)
+	out := new(NotifyBlockAddedResponse)
 	err := c.cc.Invoke(ctx, Notification_NotifyBlockAdded_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (c *notificationClient) NotifyBlockRemoved(ctx context.Context, in *NotifyB
 // for forward compatibility.
 type NotificationServer interface {
 	NotifyBlockPresent(context.Context, *NotifyBlockPresentRequest) (*NotifyBlockPresentResponse, error)
-	NotifyBlockAdded(context.Context, *NotifyBlockAddedRequest) (*NotifyBlockAddedRequest, error)
+	NotifyBlockAdded(context.Context, *NotifyBlockAddedRequest) (*NotifyBlockAddedResponse, error)
 	NotifyBlockRemoved(context.Context, *NotifyBlockRemovedRequest) (*NotifyBlockRemovedResponse, error)
 	mustEmbedUnimplementedNotificationServer()
 }
@@ -91,7 +91,7 @@ type UnimplementedNotificationServer struct{}
 func (UnimplementedNotificationServer) NotifyBlockPresent(context.Context, *NotifyBlockPresentRequest) (*NotifyBlockPresentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NotifyBlockPresent not implemented")
 }
-func (UnimplementedNotificationServer) NotifyBlockAdded(context.Context, *NotifyBlockAddedRequest) (*NotifyBlockAddedRequest, error) {
+func (UnimplementedNotificationServer) NotifyBlockAdded(context.Context, *NotifyBlockAddedRequest) (*NotifyBlockAddedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NotifyBlockAdded not implemented")
 }
 func (UnimplementedNotificationServer) NotifyBlockRemoved(context.Context, *NotifyBlockRemovedRequest) (*NotifyBlockRemovedResponse, error) {

@@ -6,7 +6,7 @@ option go_package = "./;proto";
 
 service Notification {
   rpc NotifyBlockPresent(NotifyBlockPresentRequest) returns (NotifyBlockPresentResponse);
-  rpc NotifyBlockAdded(NotifyBlockAddedRequest) returns (NotifyBlockAddedRequest);
+  rpc NotifyBlockAdded(NotifyBlockAddedRequest) returns (NotifyBlockAddedResponse);
   rpc NotifyBlockRemoved(NotifyBlockRemovedRequest) returns (NotifyBlockRemovedResponse);
 }
 

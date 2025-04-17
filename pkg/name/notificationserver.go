@@ -20,10 +20,10 @@ func (n NotificationServer) NotifyBlockPresent(ctx context.Context, request *pro
 	return &proto.NotifyBlockPresentResponse{}, err
 }
 
-func (n NotificationServer) NotifyBlockAdded(ctx context.Context, request *proto.NotifyBlockAddedRequest) (*proto.NotifyBlockAddedRequest, error) {
+func (n NotificationServer) NotifyBlockAdded(ctx context.Context, request *proto.NotifyBlockAddedRequest) (*proto.NotifyBlockAddedResponse, error) {
 	n.HealingService.NotifyNodeAlive(request.Host, time.Now())
 	err := n.FileService.NotifyBlockAdded(request)
-	return &proto.NotifyBlockAddedRequest{}, err
+	return &proto.NotifyBlockAddedResponse{}, err
 }
 
 func (n NotificationServer) NotifyBlockRemoved(ctx context.Context, request *proto.NotifyBlockRemovedRequest) (*proto.NotifyBlockRemovedResponse, error) {

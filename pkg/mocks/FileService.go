@@ -232,6 +232,63 @@ func (_c *FileService_DeleteFile_Call) RunAndReturn(run func(name.Principal, str
 	return _c
 }
 
+// GetAllBlockInfos provides a mock function with no fields
+func (_m *FileService) GetAllBlockInfos() ([]name.BlockInfo, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllBlockInfos")
+	}
+
+	var r0 []name.BlockInfo
+	var r1 error
+	if rf, ok := ret.Get(0).(func() ([]name.BlockInfo, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() []name.BlockInfo); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]name.BlockInfo)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FileService_GetAllBlockInfos_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllBlockInfos'
+type FileService_GetAllBlockInfos_Call struct {
+	*mock.Call
+}
+
+// GetAllBlockInfos is a helper method to define mock.On call
+func (_e *FileService_Expecter) GetAllBlockInfos() *FileService_GetAllBlockInfos_Call {
+	return &FileService_GetAllBlockInfos_Call{Call: _e.mock.On("GetAllBlockInfos")}
+}
+
+func (_c *FileService_GetAllBlockInfos_Call) Run(run func()) *FileService_GetAllBlockInfos_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *FileService_GetAllBlockInfos_Call) Return(_a0 []name.BlockInfo, _a1 error) *FileService_GetAllBlockInfos_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *FileService_GetAllBlockInfos_Call) RunAndReturn(run func() ([]name.BlockInfo, error)) *FileService_GetAllBlockInfos_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBlockInfos provides a mock function with given fields: p, path
 func (_m *FileService) GetBlockInfos(p name.Principal, path string) ([]name.BlockInfo, error) {
 	ret := _m.Called(p, path)
@@ -346,6 +403,52 @@ func (_c *FileService_List_Call) Return(_a0 []name.FileInfo, _a1 error) *FileSer
 }
 
 func (_c *FileService_List_Call) RunAndReturn(run func(name.Principal, string) ([]name.FileInfo, error)) *FileService_List_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NodeRemoved provides a mock function with given fields: host
+func (_m *FileService) NodeRemoved(host string) error {
+	ret := _m.Called(host)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NodeRemoved")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(host)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// FileService_NodeRemoved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NodeRemoved'
+type FileService_NodeRemoved_Call struct {
+	*mock.Call
+}
+
+// NodeRemoved is a helper method to define mock.On call
+//   - host string
+func (_e *FileService_Expecter) NodeRemoved(host interface{}) *FileService_NodeRemoved_Call {
+	return &FileService_NodeRemoved_Call{Call: _e.mock.On("NodeRemoved", host)}
+}
+
+func (_c *FileService_NodeRemoved_Call) Run(run func(host string)) *FileService_NodeRemoved_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *FileService_NodeRemoved_Call) Return(_a0 error) *FileService_NodeRemoved_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *FileService_NodeRemoved_Call) RunAndReturn(run func(string) error) *FileService_NodeRemoved_Call {
 	_c.Call.Return(run)
 	return _c
 }
