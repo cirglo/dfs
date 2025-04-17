@@ -98,7 +98,7 @@ func main() {
 		Logger:          log,
 		SecurityService: securityService,
 		FileService:     fileService}}
-	internalServer := name.InternalServer{FileService: fileService}
+	notificationServer := name.NotificationServer{FileService: fileService}
 
 	log.WithField("host", *hostFlag).WithField("port", *portFlag).Info("Starting network listener")
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *hostFlag, *portFlag))
@@ -108,7 +108,7 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 	proto.RegisterNameServer(grpcServer, server)
-	proto.RegisterNameInternalServer(grpcServer, internalServer)
+	proto.RegisterNotificationServer(grpcServer, notificationServer)
 
 	log.Info("Starting gRPC server")
 	if err := grpcServer.Serve(listener); err != nil {
@@ -131,7 +131,6 @@ func createDB(dialector gorm.Dialector) (*gorm.DB, error) {
 		name.Permissions{},
 		name.FileInfo{},
 		name.Permission{},
-		name.DirInfo{},
 		name.BlockInfo{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to auto migrate: %w", err)

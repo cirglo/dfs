@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package nodeserver;
+package node;
 
 option go_package = "./;proto";
 

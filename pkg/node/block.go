@@ -3,15 +3,14 @@ package node
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/cirglo.com/dfs/pkg/proto"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"hash/crc32"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
 type BlockService interface {
@@ -34,11 +33,11 @@ type BlockInfo struct {
 	CRC          uint32 `gorm:"column:crc;not null"`
 }
 type BlockServiceOpts struct {
-	Logger     *logrus.Logger
-	Host       string
-	DB         *gorm.DB
-	Dir        string
-	NameClient proto.NameInternalClient
+	Logger             *logrus.Logger
+	Host               string
+	DB                 *gorm.DB
+	Dir                string
+	NotificationClient proto.NotificationClient
 }
 
 func (o *BlockServiceOpts) Validate() error {
@@ -63,8 +62,8 @@ func (o *BlockServiceOpts) Validate() error {
 		return fmt.Errorf("host is required")
 	}
 
-	if o.NameClient == nil {
-		return fmt.Errorf("nameClient is required")
+	if o.NotificationClient == nil {
+		return fmt.Errorf("notificationClient is required")
 	}
 
 	return nil
@@ -158,15 +157,13 @@ func (s *service) WriteBlock(id string, path string, sequence uint64, data []byt
 		return fmt.Errorf("failed to create block info: %w", err)
 	}
 
-	_, err = s.opts.NameClient.NotifyBlocksAdded(context.Background(), &proto.BlockInfoReport{
-		Host: s.opts.Host,
-		BlockInfos: []*proto.BlockInfoItem{{
-			BlockId:  blockInfo.ID,
-			Path:     blockInfo.Path,
-			Crc:      blockInfo.CRC,
-			Sequence: blockInfo.Sequence,
-			Length:   blockInfo.Length,
-		}},
+	_, err = s.opts.NotificationClient.NotifyBlockAdded(context.Background(), &proto.NotifyBlockAddedRequest{
+		Host:     s.opts.Host,
+		BlockId:  blockInfo.ID,
+		Path:     blockInfo.Path,
+		Crc:      blockInfo.CRC,
+		Sequence: blockInfo.Sequence,
+		Length:   blockInfo.Length,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to notify blocks added: %w", err)
@@ -197,12 +194,10 @@ func (s *service) DeleteBlock(id string) error {
 		return fmt.Errorf("failed to delete block info: %w", err)
 	}
 
-	_, err = s.opts.NameClient.NotifyBlocksRemoved(context.Background(), &proto.BlockInfoReport{
-		Host: s.opts.Host,
-		BlockInfos: []*proto.BlockInfoItem{{
-			BlockId: id,
-			Path:    path,
-		}},
+	_, err = s.opts.NotificationClient.NotifyBlockRemoved(context.Background(), &proto.NotifyBlockRemovedRequest{
+		Host:    s.opts.Host,
+		BlockId: id,
+		Path:    path,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to notify blocks removed: %w", err)
@@ -248,105 +243,67 @@ func (s *service) ReadBlock(id string) ([]byte, BlockInfo, error) {
 }
 
 func (s *service) Report() error {
-	protoBlockInfos := []*proto.BlockInfoItem{}
-
-	err := s.opts.DB.Transaction(func(tx *gorm.DB) error {
-		blockInfos := []BlockInfo{}
-		err := tx.Find(&blockInfos).Error
-		if err != nil {
-			return fmt.Errorf("failed to get block ids: %w", err)
-		}
-
-		for _, blockInfo := range blockInfos {
-			protoBlockInfos = append(protoBlockInfos, &proto.BlockInfoItem{
-				BlockId:  blockInfo.ID,
-				Path:     blockInfo.Path,
-				Crc:      blockInfo.CRC,
-				Sequence: blockInfo.Sequence,
-				Length:   blockInfo.Length,
-			})
-		}
-
-		return nil
-	}, &sql.TxOptions{ReadOnly: true})
+	blockInfos, err := s.GetBlocks()
 	if err != nil {
-		return fmt.Errorf("failed to health check block info: %w", err)
+		return fmt.Errorf("failed to get blocks: %w", err)
+	}
+	var allErrors []error
+
+	for _, blockInfo := range blockInfos {
+		_, err = s.opts.NotificationClient.NotifyBlockPresent(context.Background(), &proto.NotifyBlockPresentRequest{
+			Host:     s.opts.Host,
+			BlockId:  blockInfo.ID,
+			Path:     blockInfo.Path,
+			Crc:      blockInfo.CRC,
+			Sequence: blockInfo.Sequence,
+			Length:   blockInfo.Length,
+		})
+		allErrors = append(allErrors, err)
 	}
 
-	_, err = s.opts.NameClient.NotifyBlocksRemoved(context.Background(), &proto.BlockInfoReport{
-		Host:       s.opts.Host,
-		BlockInfos: protoBlockInfos,
-	})
+	err = errors.Join(allErrors...)
 	if err != nil {
-		return fmt.Errorf("failed to report: %w", err)
+		return fmt.Errorf("failed to report blocks: %w", err)
 	}
 
 	return nil
 }
 
 func (s *service) HealthCheck() error {
-	deletedBlockInfoReport := &proto.BlockInfoReport{
-		Host:       s.opts.Host,
-		BlockInfos: []*proto.BlockInfoItem{},
-	}
-	pathsToDelete := map[string]bool{}
-
-	err := s.opts.DB.Transaction(func(tx *gorm.DB) error {
-		blockInfos := []BlockInfo{}
-		err := tx.Find(&blockInfos).Error
-		if err != nil {
-			return fmt.Errorf("failed to get block ids: %w", err)
-		}
-
-		logEntry := s.opts.Logger.WithField("block-infos-count", len(blockInfos))
-
-		for _, blockInfo := range blockInfos {
-			logEntry = logEntry.WithField("block-info", blockInfo)
-			path := blockInfo.DataFilePath
-
-			if _, err := os.Stat(path); os.IsNotExist(err) {
-				err := tx.Delete(&blockInfo).Error
-				if err != nil {
-					return fmt.Errorf("failed to delete block info: %w", err)
-				}
-				deletedBlockInfoReport.BlockInfos = append(
-					deletedBlockInfoReport.BlockInfos,
-					&proto.BlockInfoItem{
-						BlockId: blockInfo.ID,
-					})
-				pathsToDelete[path] = true
-			}
-		}
-
-		return nil
-	})
+	blockInfos, err := s.GetBlocks()
 	if err != nil {
-		return fmt.Errorf("failed to health check block info: %w", err)
+		return fmt.Errorf("failed to get blocks: %w", err)
 	}
 
-	if len(deletedBlockInfoReport.GetBlockInfos()) > 0 {
-		_, err := s.opts.NameClient.NotifyBlocksRemoved(context.Background(), deletedBlockInfoReport)
-		if err != nil {
-			s.opts.Logger.WithError(err).Error("failed to notify blocks removed")
-		}
-	}
+	var allErrors []error
 
-	if len(pathsToDelete) > 0 {
-		s.opts.Logger.Warn("deleting bad blocks")
-		for path := range pathsToDelete {
-			err := os.Remove(path)
+	for _, blockInfo := range blockInfos {
+		path := blockInfo.DataFilePath
+
+		if _, err = os.Stat(path); os.IsNotExist(err) {
+			err = s.DeleteBlock(blockInfo.ID)
 			if err != nil {
-				s.opts.Logger.WithError(err).Error("failed to remove file")
+				allErrors = append(allErrors, fmt.Errorf("failed to delete block info: %w", err))
+				break
 			}
+
 		}
-		s.opts.Logger.Warn("finished deleting bad blocks")
+	}
+
+	err = errors.Join(allErrors...)
+	if err != nil {
+		return fmt.Errorf("failed to health check blocks: %w", err)
 	}
 
 	return nil
 }
 
 func (s *service) ValidateCRC() error {
-	pathCrcs := map[string]uint32{}
+	type record struct {
+		crc    uint32
+		length uint32
+	}
+	var pathRecords map[string]record
 
 	files, err := os.ReadDir(s.opts.Dir)
 	if err != nil {
@@ -359,96 +316,64 @@ func (s *service) ValidateCRC() error {
 		}
 
 		path := f.Name()
-
-		if !strings.HasSuffix(path, ".data") {
-			continue
-		}
-
-		logEntry := s.opts.Logger.WithField("file-path", path)
-
 		_, err := f.Info()
 		if err != nil {
-			logEntry.WithError(err).Error("cannot read file info")
 			continue
 		}
 
 		data, err := os.ReadFile(path)
 		if err != nil {
-			logEntry.WithError(err).Error("cannot read file")
 			err := os.Remove(path)
 			if err != nil {
-				logEntry.WithError(err).Error("failed to remove file")
+				continue
 			}
-			continue
 		}
 
-		pathCrcs[path] = crc32.ChecksumIEEE(data)
+		pathRecords[path] = record{
+			crc:    crc32.ChecksumIEEE(data),
+			length: uint32(len(data)),
+		}
 	}
 
-	pathsToDelete := map[string]bool{}
-	deletedBlockInfoReport := &proto.BlockInfoReport{
-		Host:       s.opts.Host,
-		BlockInfos: []*proto.BlockInfoItem{},
-	}
-
-	err = s.opts.DB.Transaction(func(tx *gorm.DB) error {
-		blockInfos := []BlockInfo{}
-		err := tx.Find(&blockInfos).Error
-		if err != nil {
-			return fmt.Errorf("failed to get block ids: %w", err)
-		}
-
-		logEntry := s.opts.Logger.WithField("block-infos-count", len(blockInfos))
-
-		for _, blockInfo := range blockInfos {
-			logEntry = logEntry.WithField("block-info", blockInfos)
-			path := blockInfo.DataFilePath
-
-			if _, ok := pathCrcs[path]; !ok {
-				err := tx.Delete(&blockInfo).Error
-				if err != nil {
-					return fmt.Errorf("failed to delete block info: %w", err)
-				}
-
-				deletedBlockInfoReport.BlockInfos = append(
-					deletedBlockInfoReport.BlockInfos,
-					&proto.BlockInfoItem{
-						BlockId: blockInfo.ID,
-					})
-			}
-
-			if pathCrcs[path] != blockInfo.CRC {
-				err := tx.Delete(&blockInfo).Error
-				if err != nil {
-					return fmt.Errorf("failed to delete block info: %w", err)
-				}
-				deletedBlockInfoReport.BlockInfos = append(
-					deletedBlockInfoReport.BlockInfos,
-					&proto.BlockInfoItem{
-						BlockId: blockInfo.ID,
-					})
-				pathsToDelete[path] = true
-			}
-		}
-
-		return nil
-	})
+	blockInfos, err := s.GetBlocks()
 	if err != nil {
-		return fmt.Errorf("failed to delete block info: %w", err)
+		return fmt.Errorf("failed to get blocks: %w", err)
 	}
 
-	for path := range pathsToDelete {
-		err := os.Remove(path)
-		if err != nil {
-			s.opts.Logger.WithError(err).WithField("file", path).Error("failed to remove file")
+	var allErrors []error
+
+	for _, blockInfo := range blockInfos {
+		path := blockInfo.DataFilePath
+		blockCRC := blockInfo.CRC
+		blockLength := blockInfo.Length
+
+		willDelete := false
+
+		record, found := pathRecords[path]
+		if found {
+			if record.crc != blockCRC || record.length != blockLength {
+				willDelete = true
+			}
+		} else {
+			willDelete = true
+		}
+		delete(pathRecords, path)
+
+		if willDelete {
+			err = s.DeleteBlock(blockInfo.ID)
+			allErrors = append(allErrors, err)
 		}
 	}
 
-	if len(deletedBlockInfoReport.GetBlockInfos()) > 0 {
-		_, err = s.opts.NameClient.NotifyBlocksRemoved(context.Background(), deletedBlockInfoReport)
-		if err != nil {
-			s.opts.Logger.WithError(err).Error("failed to notify blocks removed")
-		}
+	for path := range pathRecords {
+		err = os.Remove(path)
+		allErrors = append(allErrors, err)
+	}
+
+	err = errors.Join(allErrors...)
+
+	if err != nil {
+		return fmt.Errorf("failed to validate crc: %w", err)
 	}
 
 	return nil
