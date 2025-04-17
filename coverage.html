@@ -246,8 +246,10 @@ func main() <span class="cov0" title="0">{
                 t := time.NewTicker(*healingIntervalFlag)
                 for range t.C </span><span class="cov0" title="0">{
                         err := healingService.Heal(time.Now())
-                        log.WithError(err).Info("Healing failed")
-                }</span>
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.WithError(err).Fatal("Healing failed")
+                        }</span>
+                }
         }()
 
         <span class="cov0" title="0">log.Info("Starting gRPC server")

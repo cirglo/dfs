@@ -132,8 +132,9 @@ func main() {
 		for range t.C {
 			err := healingService.Heal(time.Now())
 			if err != nil {
-				log.WithError(err).Info("Healing failed")
+				log.WithError(err).Fatal("Healing failed")
 			}
+		}
 	}()
 
 	log.Info("Starting gRPC server")
