@@ -32,6 +32,8 @@ type FileService interface {
 	NotifyBlockPresent(n *proto.NotifyBlockPresentRequest) error
 	NotifyBlockAdded(n *proto.NotifyBlockAddedRequest) error
 	NotifyBlockRemoved(n *proto.NotifyBlockRemovedRequest) error
+	NodeRemoved(host string) error
+	GetAllBlockInfos() ([]BlockInfo, error)
 }
 
 type FileInfo struct {
@@ -817,4 +819,50 @@ func (f *fileService) NotifyBlockRemoved(n *proto.NotifyBlockRemovedRequest) err
 	}
 
 	return nil
+}
+
+func (f *fileService) NodeRemoved(host string) error {
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		blockInfos := []BlockInfo{}
+
+		err := tx.Find(&blockInfos).Error
+		if err != nil {
+			return fmt.Errorf("could not get blocks: %w", err)
+		}
+
+		for _, blockInfo := range blockInfos {
+			for _, location := range blockInfo.Locations {
+				if location.Host == host {
+					err = tx.Delete(&location).Error
+					if err != nil {
+						return fmt.Errorf("could not delete location %v: %w", location, err)
+					}
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("could not remove node '%s': %w", host, err)
+	}
+
+	return nil
+}
+
+func (f *fileService) GetAllBlockInfos() ([]BlockInfo, error) {
+	blockInfos := []BlockInfo{}
+
+	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
+		err := tx.Find(&blockInfos).Error
+		if err != nil {
+			return err
+		}
+		return nil
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return blockInfos, fmt.Errorf("could not get block infos: %w", err)
+	}
+
+	return blockInfos, nil
 }

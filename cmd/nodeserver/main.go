@@ -7,7 +7,6 @@ import (
 	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"net"
@@ -47,10 +46,10 @@ func main() {
 		log.WithError(err).Fatal("Failed to create database")
 	}
 
+	connectionFactory := proto.NewInsecureConnectionFactory()
+
 	log.WithField("name-node", *nameNodeFlag).Info("Connecting to name node")
-	conn, err := grpc.NewClient(
-		*nameNodeFlag,
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := connectionFactory(*nameNodeFlag)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to connect to name node")
 	}
@@ -78,12 +77,9 @@ func main() {
 
 	log.Info("Creating server")
 	nodeServer, err := node.NewServer(node.ServerOpts{
-		Logger:       log,
-		BlockService: blockService,
-		ClientConnectionFactory: func(destination string) (*grpc.ClientConn, error) {
-			return grpc.NewClient(destination, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
-		},
+		Logger:            log,
+		BlockService:      blockService,
+		ConnectionFactory: connectionFactory,
 	})
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create server")

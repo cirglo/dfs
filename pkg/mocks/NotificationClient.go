@@ -26,7 +26,7 @@ func (_m *NotificationClient) EXPECT() *NotificationClient_Expecter {
 }
 
 // NotifyBlockAdded provides a mock function with given fields: ctx, in, opts
-func (_m *NotificationClient) NotifyBlockAdded(ctx context.Context, in *proto.NotifyBlockAddedRequest, opts ...grpc.CallOption) (*proto.NotifyBlockAddedRequest, error) {
+func (_m *NotificationClient) NotifyBlockAdded(ctx context.Context, in *proto.NotifyBlockAddedRequest, opts ...grpc.CallOption) (*proto.NotifyBlockAddedResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -40,16 +40,16 @@ func (_m *NotificationClient) NotifyBlockAdded(ctx context.Context, in *proto.No
 		panic("no return value specified for NotifyBlockAdded")
 	}
 
-	var r0 *proto.NotifyBlockAddedRequest
+	var r0 *proto.NotifyBlockAddedResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *proto.NotifyBlockAddedRequest, ...grpc.CallOption) (*proto.NotifyBlockAddedRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *proto.NotifyBlockAddedRequest, ...grpc.CallOption) (*proto.NotifyBlockAddedResponse, error)); ok {
 		return rf(ctx, in, opts...)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *proto.NotifyBlockAddedRequest, ...grpc.CallOption) *proto.NotifyBlockAddedRequest); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *proto.NotifyBlockAddedRequest, ...grpc.CallOption) *proto.NotifyBlockAddedResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*proto.NotifyBlockAddedRequest)
+			r0 = ret.Get(0).(*proto.NotifyBlockAddedResponse)
 		}
 	}
 
@@ -89,12 +89,12 @@ func (_c *NotificationClient_NotifyBlockAdded_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *NotificationClient_NotifyBlockAdded_Call) Return(_a0 *proto.NotifyBlockAddedRequest, _a1 error) *NotificationClient_NotifyBlockAdded_Call {
+func (_c *NotificationClient_NotifyBlockAdded_Call) Return(_a0 *proto.NotifyBlockAddedResponse, _a1 error) *NotificationClient_NotifyBlockAdded_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *NotificationClient_NotifyBlockAdded_Call) RunAndReturn(run func(context.Context, *proto.NotifyBlockAddedRequest, ...grpc.CallOption) (*proto.NotifyBlockAddedRequest, error)) *NotificationClient_NotifyBlockAdded_Call {
+func (_c *NotificationClient_NotifyBlockAdded_Call) RunAndReturn(run func(context.Context, *proto.NotifyBlockAddedRequest, ...grpc.CallOption) (*proto.NotifyBlockAddedResponse, error)) *NotificationClient_NotifyBlockAdded_Call {
 	_c.Call.Return(run)
 	return _c
 }

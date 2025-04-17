@@ -27,7 +27,9 @@ func main() {
 	dbPoolMaxLifetimeFlag := flag.Duration("db-pool-max-lifetime", 1*time.Hour, "Max Lifetime of Connections in the DB Pool")
 	dbPoolMaxIdleTimeFlag := flag.Duration("db-pool-max-idle-time", 10*time.Minute, "Max Lifetime of Connections in the DB Pool")
 	tokenExpirationFlag := flag.Duration("token-expiration", 24*time.Hour, "Token Expiration duration")
-
+	numReplicasFlag := flag.Uint("num-replicas", 1, "Number of replicas")
+	nodeExpirationFlag := flag.Duration("node-expiration", 15*time.Minute, "Node Expiration duration")
+	healingIntervalFlag := flag.Duration("healing-interval", 1*time.Minute, "Healing interval")
 	var dialector gorm.Dialector
 
 	flag.Parse()
@@ -93,12 +95,27 @@ func main() {
 		log.WithError(err).Fatal("Failed to create file service")
 	}
 
-	log.Info("Creating servers")
+	log.Info("Creating server")
 	server := name.Server{Opts: name.ServerOpts{
 		Logger:          log,
 		SecurityService: securityService,
 		FileService:     fileService}}
-	notificationServer := name.NotificationServer{FileService: fileService}
+
+	healingService, err := name.NewHealingService(name.HealingOpts{
+		Logger:            log,
+		NumReplicas:       *numReplicasFlag,
+		FileService:       fileService,
+		NodeExpiration:    *nodeExpirationFlag,
+		ConnectionFactory: proto.NewInsecureConnectionFactory(),
+	})
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create healing service")
+	}
+
+	notificationServer := name.NotificationServer{
+		FileService:    fileService,
+		HealingService: healingService,
+	}
 
 	log.WithField("host", *hostFlag).WithField("port", *portFlag).Info("Starting network listener")
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *hostFlag, *portFlag))
@@ -109,6 +126,16 @@ func main() {
 	grpcServer := grpc.NewServer()
 	proto.RegisterNameServer(grpcServer, server)
 	proto.RegisterNotificationServer(grpcServer, notificationServer)
+
+	go func() {
+		t := time.NewTicker(*healingIntervalFlag)
+		for range t.C {
+			err := healingService.Heal(time.Now())
+			if err != nil {
+				log.WithError(err).Fatal("Healing failed")
+			}
+		}
+	}()
 
 	log.Info("Starting gRPC server")
 	if err := grpcServer.Serve(listener); err != nil {

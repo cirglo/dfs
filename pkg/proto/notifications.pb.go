@@ -382,10 +382,10 @@ const file_notifications_proto_rawDesc = "" +
 	"\x04host\x18\x01 \x01(\tR\x04host\x12\x18\n" +
 	"\ablockId\x18\x02 \x01(\tR\ablockId\x12\x12\n" +
 	"\x04path\x18\x03 \x01(\tR\x04path\"\x1c\n" +
-	"\x1aNotifyBlockRemovedResponse2\xc2\x02\n" +
+	"\x1aNotifyBlockRemovedResponse2\xc3\x02\n" +
 	"\fNotification\x12g\n" +
-	"\x12NotifyBlockPresent\x12'.notification.NotifyBlockPresentRequest\x1a(.notification.NotifyBlockPresentResponse\x12`\n" +
-	"\x10NotifyBlockAdded\x12%.notification.NotifyBlockAddedRequest\x1a%.notification.NotifyBlockAddedRequest\x12g\n" +
+	"\x12NotifyBlockPresent\x12'.notification.NotifyBlockPresentRequest\x1a(.notification.NotifyBlockPresentResponse\x12a\n" +
+	"\x10NotifyBlockAdded\x12%.notification.NotifyBlockAddedRequest\x1a&.notification.NotifyBlockAddedResponse\x12g\n" +
 	"\x12NotifyBlockRemoved\x12'.notification.NotifyBlockRemovedRequest\x1a(.notification.NotifyBlockRemovedResponseB\n" +
 	"Z\b./;protob\x06proto3"
 
@@ -415,7 +415,7 @@ var file_notifications_proto_depIdxs = []int32{
 	2, // 1: notification.Notification.NotifyBlockAdded:input_type -> notification.NotifyBlockAddedRequest
 	4, // 2: notification.Notification.NotifyBlockRemoved:input_type -> notification.NotifyBlockRemovedRequest
 	1, // 3: notification.Notification.NotifyBlockPresent:output_type -> notification.NotifyBlockPresentResponse
-	2, // 4: notification.Notification.NotifyBlockAdded:output_type -> notification.NotifyBlockAddedRequest
+	3, // 4: notification.Notification.NotifyBlockAdded:output_type -> notification.NotifyBlockAddedResponse
 	5, // 5: notification.Notification.NotifyBlockRemoved:output_type -> notification.NotifyBlockRemovedResponse
 	3, // [3:6] is the sub-list for method output_type
 	0, // [0:3] is the sub-list for method input_type
