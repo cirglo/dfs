@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: nameserver.proto
+// source: names.proto
 
 package proto
 
@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Name_Login_FullMethodName      = "/nameserver.Name/Login"
-	Name_Logout_FullMethodName     = "/nameserver.Name/Logout"
-	Name_CreateFile_FullMethodName = "/nameserver.Name/CreateFile"
-	Name_CreateDir_FullMethodName  = "/nameserver.Name/CreateDir"
-	Name_DeleteFile_FullMethodName = "/nameserver.Name/DeleteFile"
-	Name_DeleteDir_FullMethodName  = "/nameserver.Name/DeleteDir"
-	Name_ListDir_FullMethodName    = "/nameserver.Name/ListDir"
-	Name_StatFile_FullMethodName   = "/nameserver.Name/StatFile"
+	Name_Login_FullMethodName      = "/name.Name/Login"
+	Name_Logout_FullMethodName     = "/name.Name/Logout"
+	Name_CreateFile_FullMethodName = "/name.Name/CreateFile"
+	Name_CreateDir_FullMethodName  = "/name.Name/CreateDir"
+	Name_DeleteFile_FullMethodName = "/name.Name/DeleteFile"
+	Name_DeleteDir_FullMethodName  = "/name.Name/DeleteDir"
+	Name_List_FullMethodName       = "/name.Name/List"
+	Name_Stat_FullMethodName       = "/name.Name/Stat"
 )
 
 // NameClient is the client API for Name service.
@@ -39,8 +39,8 @@ type NameClient interface {
 	CreateDir(ctx context.Context, in *CreateDirRequest, opts ...grpc.CallOption) (*CreateDirResponse, error)
 	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
 	DeleteDir(ctx context.Context, in *DeleteDirRequest, opts ...grpc.CallOption) (*DeleteDirResponse, error)
-	ListDir(ctx context.Context, in *ListDirRequest, opts ...grpc.CallOption) (*ListDirResponse, error)
-	StatFile(ctx context.Context, in *StatFileRequest, opts ...grpc.CallOption) (*StatFileResponse, error)
+	List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error)
+	Stat(ctx context.Context, in *StatRequest, opts ...grpc.CallOption) (*StatResponse, error)
 }
 
 type nameClient struct {
@@ -111,20 +111,20 @@ func (c *nameClient) DeleteDir(ctx context.Context, in *DeleteDirRequest, opts .
 	return out, nil
 }
 
-func (c *nameClient) ListDir(ctx context.Context, in *ListDirRequest, opts ...grpc.CallOption) (*ListDirResponse, error) {
+func (c *nameClient) List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListDirResponse)
-	err := c.cc.Invoke(ctx, Name_ListDir_FullMethodName, in, out, cOpts...)
+	out := new(ListResponse)
+	err := c.cc.Invoke(ctx, Name_List_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *nameClient) StatFile(ctx context.Context, in *StatFileRequest, opts ...grpc.CallOption) (*StatFileResponse, error) {
+func (c *nameClient) Stat(ctx context.Context, in *StatRequest, opts ...grpc.CallOption) (*StatResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(StatFileResponse)
-	err := c.cc.Invoke(ctx, Name_StatFile_FullMethodName, in, out, cOpts...)
+	out := new(StatResponse)
+	err := c.cc.Invoke(ctx, Name_Stat_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +141,8 @@ type NameServer interface {
 	CreateDir(context.Context, *CreateDirRequest) (*CreateDirResponse, error)
 	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
 	DeleteDir(context.Context, *DeleteDirRequest) (*DeleteDirResponse, error)
-	ListDir(context.Context, *ListDirRequest) (*ListDirResponse, error)
-	StatFile(context.Context, *StatFileRequest) (*StatFileResponse, error)
+	List(context.Context, *ListRequest) (*ListResponse, error)
+	Stat(context.Context, *StatRequest) (*StatResponse, error)
 	mustEmbedUnimplementedNameServer()
 }
 
@@ -171,11 +171,11 @@ func (UnimplementedNameServer) DeleteFile(context.Context, *DeleteFileRequest) (
 func (UnimplementedNameServer) DeleteDir(context.Context, *DeleteDirRequest) (*DeleteDirResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteDir not implemented")
 }
-func (UnimplementedNameServer) ListDir(context.Context, *ListDirRequest) (*ListDirResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListDir not implemented")
+func (UnimplementedNameServer) List(context.Context, *ListRequest) (*ListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
 }
-func (UnimplementedNameServer) StatFile(context.Context, *StatFileRequest) (*StatFileResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StatFile not implemented")
+func (UnimplementedNameServer) Stat(context.Context, *StatRequest) (*StatResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Stat not implemented")
 }
 func (UnimplementedNameServer) mustEmbedUnimplementedNameServer() {}
 func (UnimplementedNameServer) testEmbeddedByValue()              {}
@@ -306,38 +306,38 @@ func _Name_DeleteDir_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Name_ListDir_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListDirRequest)
+func _Name_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NameServer).ListDir(ctx, in)
+		return srv.(NameServer).List(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Name_ListDir_FullMethodName,
+		FullMethod: Name_List_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NameServer).ListDir(ctx, req.(*ListDirRequest))
+		return srv.(NameServer).List(ctx, req.(*ListRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Name_StatFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StatFileRequest)
+func _Name_Stat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NameServer).StatFile(ctx, in)
+		return srv.(NameServer).Stat(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Name_StatFile_FullMethodName,
+		FullMethod: Name_Stat_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NameServer).StatFile(ctx, req.(*StatFileRequest))
+		return srv.(NameServer).Stat(ctx, req.(*StatRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -346,7 +346,7 @@ func _Name_StatFile_Handler(srv interface{}, ctx context.Context, dec func(inter
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Name_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "nameserver.Name",
+	ServiceName: "name.Name",
 	HandlerType: (*NameServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -374,14 +374,14 @@ var Name_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Name_DeleteDir_Handler,
 		},
 		{
-			MethodName: "ListDir",
-			Handler:    _Name_ListDir_Handler,
+			MethodName: "List",
+			Handler:    _Name_List_Handler,
 		},
 		{
-			MethodName: "StatFile",
-			Handler:    _Name_StatFile_Handler,
+			MethodName: "Stat",
+			Handler:    _Name_Stat_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "nameserver.proto",
+	Metadata: "names.proto",
 }

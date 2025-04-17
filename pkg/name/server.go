@@ -126,19 +126,6 @@ func (s Server) DeleteDir(ctx context.Context, request *proto.DeleteDirRequest) 
 	return &proto.DeleteDirResponse{}, nil
 }
 
-func convertToProtoDirEntry(dirInfo DirInfo, parentDir string) *proto.DirEntry {
-	path := fmt.Sprintf("%s/%s", parentDir, dirInfo.Name)
-
-	return &proto.DirEntry{
-		Path:        path,
-		IsDir:       true,
-		Permissions: convertToProtoPermissions(dirInfo.Permissions),
-		CreatedAt:   dirInfo.CreatedAt.Unix(),
-		ModifiedAt:  dirInfo.UpdatedAt.Unix(),
-		AccessedAt:  dirInfo.UpdatedAt.Unix(),
-	}
-}
-
 func convertToProtoDirEntryFile(fileInfo FileInfo, parentDir string) *proto.DirEntry {
 	path := fmt.Sprintf("%s/%s", parentDir, fileInfo.Name)
 	return &proto.DirEntry{
@@ -151,33 +138,25 @@ func convertToProtoDirEntryFile(fileInfo FileInfo, parentDir string) *proto.DirE
 	}
 }
 
-func (s Server) ListDir(ctx context.Context, request *proto.ListDirRequest) (*proto.ListDirResponse, error) {
+func (s Server) List(ctx context.Context, request *proto.ListRequest) (*proto.ListResponse, error) {
 	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup user: %w", err)
 	}
 	principal := NewPrincipal(user)
-	dirInfos, err := s.Opts.FileService.ListDirs(principal, request.GetPath())
+
+	fileInfos, err := s.Opts.FileService.List(principal, request.GetPath())
 	if err != nil {
-		return nil, fmt.Errorf("failed to list dirs: %w", err)
+		return nil, fmt.Errorf("failed to list path '%s': %w", request.GetPath(), err)
 	}
 
-	fileInfos, err := s.Opts.FileService.ListFiles(principal, request.GetPath())
-	if err != nil {
-		return nil, fmt.Errorf("failed to list files: %w", err)
-	}
-
-	entries := []*proto.DirEntry{}
-
-	for _, dirInfo := range dirInfos {
-		entries = append(entries, convertToProtoDirEntry(dirInfo, request.GetPath()))
-	}
+	var entries []*proto.DirEntry
 
 	for _, fileInfo := range fileInfos {
 		entries = append(entries, convertToProtoDirEntryFile(fileInfo, request.GetPath()))
 	}
 
-	return &proto.ListDirResponse{
+	return &proto.ListResponse{
 		Path:    request.GetPath(),
 		Entries: entries,
 	}, nil
@@ -192,15 +171,15 @@ func convertToProtoStatBlockInfo(blockInfo BlockInfo) *proto.StatBlockInfo {
 	}
 }
 
-func (s Server) StatFile(ctx context.Context, request *proto.StatFileRequest) (*proto.StatFileResponse, error) {
+func (s Server) Stat(ctx context.Context, request *proto.StatRequest) (*proto.StatResponse, error) {
 	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup user: %w", err)
 	}
 	principal := NewPrincipal(user)
-	fileInfo, err := s.Opts.FileService.StatFile(principal, request.GetPath())
+	fileInfo, err := s.Opts.FileService.Stat(principal, request.GetPath())
 	if err != nil {
-		return nil, fmt.Errorf("failed to stat file: %w", err)
+		return nil, fmt.Errorf("failed to stat file '%s': %w", request.GetPath(), err)
 	}
 
 	blockInfos, err := s.Opts.FileService.GetBlockInfos(principal, request.GetPath())
@@ -208,13 +187,13 @@ func (s Server) StatFile(ctx context.Context, request *proto.StatFileRequest) (*
 		return nil, fmt.Errorf("failed to get block infos: %w", err)
 	}
 
-	protoBlockInfos := []*proto.StatBlockInfo{}
+	var protoBlockInfos []*proto.StatBlockInfo
 
 	for _, blockInfo := range blockInfos {
 		protoBlockInfos = append(protoBlockInfos, convertToProtoStatBlockInfo(blockInfo))
 	}
 
-	return &proto.StatFileResponse{
+	return &proto.StatResponse{
 		Path:       request.GetPath(),
 		Entry:      convertToProtoDirEntryFile(fileInfo, request.GetPath()),
 		BlockInfos: protoBlockInfos,

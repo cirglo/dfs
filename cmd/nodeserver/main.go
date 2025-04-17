@@ -54,14 +54,14 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to connect to name node")
 	}
-	client := proto.NewNameInternalClient(conn)
+	client := proto.NewNotificationClient(conn)
 
 	serviceOpts := node.BlockServiceOpts{
-		Logger:     log,
-		Host:       *hostFlag,
-		DB:         db,
-		Dir:        *dirFlag,
-		NameClient: client,
+		Logger:             log,
+		Host:               *hostFlag,
+		DB:                 db,
+		Dir:                *dirFlag,
+		NotificationClient: client,
 	}
 
 	log.Info("Creating block service")

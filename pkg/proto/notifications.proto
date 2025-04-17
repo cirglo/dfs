@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package notification;
+
+option go_package = "./;proto";
+
+service Notification {
+  rpc NotifyBlockPresent(NotifyBlockPresentRequest) returns (NotifyBlockPresentResponse);
+  rpc NotifyBlockAdded(NotifyBlockAddedRequest) returns (NotifyBlockAddedRequest);
+  rpc NotifyBlockRemoved(NotifyBlockRemovedRequest) returns (NotifyBlockRemovedResponse);
+}
+
+message NotifyBlockPresentRequest {
+  string host = 1;
+  string blockId = 2;
+  string path = 3;
+  uint32 crc = 4;
+  uint64 sequence = 5;
+  uint32 length = 6;
+}
+
+message NotifyBlockPresentResponse {
+}
+
+message NotifyBlockAddedRequest {
+  string host = 1;
+  string blockId = 2;
+  string path = 3;
+  uint32 crc = 4;
+  uint64 sequence = 5;
+  uint32 length = 6;
+}
+
+message NotifyBlockAddedResponse {
+}
+
+message NotifyBlockRemovedRequest {
+  string host = 1;
+  string blockId = 2;
+  string path = 3;
+}
+
+message NotifyBlockRemovedResponse {
+}

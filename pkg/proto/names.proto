@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package nameserver;
+package name;
 
 option go_package = "./;proto";
 
@@ -11,13 +11,14 @@ service Name {
   rpc CreateDir(CreateDirRequest) returns (CreateDirResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
   rpc DeleteDir(DeleteDirRequest) returns (DeleteDirResponse);
-  rpc ListDir(ListDirRequest) returns (ListDirResponse);
-  rpc StatFile(StatFileRequest) returns (StatFileResponse);
+  rpc List(ListRequest) returns (ListResponse);
+  rpc Stat(StatRequest) returns (StatResponse);
 }
 
 message Permission {
   bool read = 1;
   bool write = 2;
+  bool delete = 3;
 }
 
 message Permissions {
@@ -99,22 +100,22 @@ message DeleteDirRequest {
 message DeleteDirResponse {
 }
 
-message ListDirRequest {
+message ListRequest {
   string token = 1;
   string path = 2;
 }
 
-message ListDirResponse {
+message ListResponse {
   string path = 1;
   repeated DirEntry entries = 2;
 }
 
-message StatFileRequest {
+message StatRequest {
   string token = 1;
   string path = 2;
 }
 
-message StatFileResponse {
+message StatResponse {
   string path = 1;
   DirEntry entry = 2;
   repeated StatBlockInfo blockInfos = 3;

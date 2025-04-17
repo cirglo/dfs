@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: nodeserver.proto
+// source: nodes.proto
 
 package proto
 
@@ -19,12 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Node_GetBlockInfos_FullMethodName = "/nodeserver.Node/GetBlockInfos"
-	Node_GetBlockInfo_FullMethodName  = "/nodeserver.Node/GetBlockInfo"
-	Node_GetBlock_FullMethodName      = "/nodeserver.Node/GetBlock"
-	Node_WriteBlock_FullMethodName    = "/nodeserver.Node/WriteBlock"
-	Node_DeleteBlock_FullMethodName   = "/nodeserver.Node/DeleteBlock"
-	Node_CopyBlock_FullMethodName     = "/nodeserver.Node/CopyBlock"
+	Node_GetBlockInfos_FullMethodName = "/node.Node/GetBlockInfos"
+	Node_GetBlockInfo_FullMethodName  = "/node.Node/GetBlockInfo"
+	Node_GetBlock_FullMethodName      = "/node.Node/GetBlock"
+	Node_WriteBlock_FullMethodName    = "/node.Node/WriteBlock"
+	Node_DeleteBlock_FullMethodName   = "/node.Node/DeleteBlock"
+	Node_CopyBlock_FullMethodName     = "/node.Node/CopyBlock"
 )
 
 // NodeClient is the client API for Node service.
@@ -278,7 +278,7 @@ func _Node_CopyBlock_Handler(srv interface{}, ctx context.Context, dec func(inte
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Node_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "nodeserver.Node",
+	ServiceName: "node.Node",
 	HandlerType: (*NodeServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -307,5 +307,5 @@ var Node_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "nodeserver.proto",
+	Metadata: "nodes.proto",
 }

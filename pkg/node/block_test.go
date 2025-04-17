@@ -50,13 +50,13 @@ func TestBlockService_Write_Read_Delete_Block(t *testing.T) {
 	log := createLogger(t)
 	db := createDB(t)
 	dir := createDir(t)
-	nameClient := mocks.NewNameInternalClient(t)
+	notificationClient := mocks.NewNotificationClient(t)
 	opts := node.BlockServiceOpts{
-		Logger:     log,
-		Host:       "whoof:2345",
-		DB:         db,
-		Dir:        dir,
-		NameClient: nameClient,
+		Logger:             log,
+		Host:               "whoof:2345",
+		DB:                 db,
+		Dir:                dir,
+		NotificationClient: notificationClient,
 	}
 	service, err := node.NewBlockService(opts)
 	assert.NoError(t, err)
@@ -70,7 +70,10 @@ func TestBlockService_Write_Read_Delete_Block(t *testing.T) {
 	path := "/hello.txt"
 	data := []byte("hello")
 
-	nameClient.EXPECT().NotifyBlocksAdded(mock.Anything, mock.Anything).Return(nil, nil)
+	notificationClient.EXPECT().
+		NotifyBlockAdded(mock.Anything, mock.Anything).
+		Return(nil, nil).
+		Once()
 
 	err = service.WriteBlock(id, path, sequence, data)
 	assert.NoError(t, err)
@@ -93,7 +96,10 @@ func TestBlockService_Write_Read_Delete_Block(t *testing.T) {
 	assert.Equal(t, uint32(len(data)), bi.Length)
 	assert.NotEmpty(t, bi.DataFilePath)
 
-	nameClient.EXPECT().NotifyBlocksRemoved(mock.Anything, mock.Anything).Return(nil, nil)
+	notificationClient.EXPECT().
+		NotifyBlockRemoved(mock.Anything, mock.Anything).
+		Return(nil, nil).
+		Once()
 
 	err = service.DeleteBlock(id)
 	assert.NoError(t, err)
@@ -102,5 +108,5 @@ func TestBlockService_Write_Read_Delete_Block(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, blocks, 0)
 
-	nameClient.AssertExpectations(t)
+	notificationClient.AssertExpectations(t)
 }
