@@ -132,7 +132,7 @@ func (s *server) CopyBlock(ctx context.Context, request *proto.CopyBlockRequest)
 		return nil, fmt.Errorf("failed to read data for block id %s : %w", blockInfo.ID, err)
 	}
 
-	conn, err := s.opts.ConnectionFactory(request.GetDestination())
+	conn, err := s.opts.ConnectionFactory.CreateConnection(request.GetDestination())
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to destination node: %w", err)
 	}
