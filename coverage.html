@@ -83,19 +83,19 @@
 				
 				<option value="file13">github.com/cirglo.com/dfs/pkg/mocks/SecurityService.go (0.0%)</option>
 				
-				<option value="file14">github.com/cirglo.com/dfs/pkg/name/file.go (34.6%)</option>
+				<option value="file14">github.com/cirglo.com/dfs/pkg/name/file.go (41.6%)</option>
 				
-				<option value="file15">github.com/cirglo.com/dfs/pkg/name/healing.go (0.0%)</option>
+				<option value="file15">github.com/cirglo.com/dfs/pkg/name/healing.go (10.5%)</option>
 				
 				<option value="file16">github.com/cirglo.com/dfs/pkg/name/notificationserver.go (0.0%)</option>
 				
-				<option value="file17">github.com/cirglo.com/dfs/pkg/name/permission.go (0.0%)</option>
+				<option value="file17">github.com/cirglo.com/dfs/pkg/name/permission.go (100.0%)</option>
 				
-				<option value="file18">github.com/cirglo.com/dfs/pkg/name/principal.go (5.1%)</option>
+				<option value="file18">github.com/cirglo.com/dfs/pkg/name/principal.go (82.1%)</option>
 				
-				<option value="file19">github.com/cirglo.com/dfs/pkg/name/privileges.go (0.0%)</option>
+				<option value="file19">github.com/cirglo.com/dfs/pkg/name/privileges.go (100.0%)</option>
 				
-				<option value="file20">github.com/cirglo.com/dfs/pkg/name/security.go (0.0%)</option>
+				<option value="file20">github.com/cirglo.com/dfs/pkg/name/security.go (3.4%)</option>
 				
 				<option value="file21">github.com/cirglo.com/dfs/pkg/name/server.go (0.0%)</option>
 				
@@ -5377,24 +5377,24 @@ type BlockInfo struct {
         CRC        uint32     `gorm:"not null"`
 }
 
-func (bi *BlockInfo) BeforeSave(_ *gorm.DB) error <span class="cov0" title="0">{
+func (bi *BlockInfo) BeforeSave(_ *gorm.DB) error <span class="cov8" title="1">{
         bi.ID = strings.TrimSpace(bi.ID)
 
         if len(bi.ID) == 0 </span><span class="cov0" title="0">{
                 return fmt.Errorf("ID cannot be empty")
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (bi *BlockInfo) AfterFind(tx *gorm.DB) error <span class="cov0" title="0">{
+func (bi *BlockInfo) AfterFind(tx *gorm.DB) error <span class="cov8" title="1">{
         locations := bi.Locations
 
         sort.Slice(locations, func(i, j int) bool </span><span class="cov0" title="0">{
                 return locations[i].Host &lt; locations[j].Host
         }</span>)
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
 func (bi *BlockInfo) ContainsHost(host string) bool <span class="cov0" title="0">{
@@ -5412,13 +5412,13 @@ type Location struct {
         Host        string `gorm:"uniqueIndex:idx_location;not null"`
 }
 
-func (l *Location) BeforeSave(_ *gorm.DB) error <span class="cov0" title="0">{
+func (l *Location) BeforeSave(_ *gorm.DB) error <span class="cov8" title="1">{
         l.Host = strings.TrimSpace(l.Host)
         if len(l.Host) == 0 </span><span class="cov0" title="0">{
                 return fmt.Errorf("location host is empty")
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
 type FileServiceOpts struct {
@@ -6044,8 +6044,8 @@ func (f *fileService) NotifyBlockRemoved(n *proto.NotifyBlockRemovedRequest) err
         <span class="cov0" title="0">return nil</span>
 }
 
-func (f *fileService) NodeRemoved(host string) error <span class="cov0" title="0">{
-        err := f.Opts.DB.Transaction(func(tx *gorm.DB) error </span><span class="cov0" title="0">{
+func (f *fileService) NodeRemoved(host string) error <span class="cov8" title="1">{
+        err := f.Opts.DB.Transaction(func(tx *gorm.DB) error </span><span class="cov8" title="1">{
                 blockInfos := []BlockInfo{}
 
                 err := tx.Find(&amp;blockInfos).Error
@@ -6053,7 +6053,7 @@ func (f *fileService) NodeRemoved(host string) error <span class="cov0" title="0
                         return fmt.Errorf("could not get blocks: %w", err)
                 }</span>
 
-                <span class="cov0" title="0">for _, blockInfo := range blockInfos </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">for _, blockInfo := range blockInfos </span><span class="cov8" title="1">{
                         for _, location := range blockInfo.Locations </span><span class="cov0" title="0">{
                                 if location.Host == host </span><span class="cov0" title="0">{
                                         err = tx.Delete(&amp;location).Error
@@ -6064,30 +6064,30 @@ func (f *fileService) NodeRemoved(host string) error <span class="cov0" title="0
                         }
                 }
 
-                <span class="cov0" title="0">return nil</span>
+                <span class="cov8" title="1">return nil</span>
         })
-        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("could not remove node '%s': %w", host, err)
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (f *fileService) GetAllBlockInfos() ([]BlockInfo, error) <span class="cov0" title="0">{
+func (f *fileService) GetAllBlockInfos() ([]BlockInfo, error) <span class="cov8" title="1">{
         blockInfos := []BlockInfo{}
 
-        err := f.Opts.DB.Transaction(func(tx *gorm.DB) error </span><span class="cov0" title="0">{
+        err := f.Opts.DB.Transaction(func(tx *gorm.DB) error </span><span class="cov8" title="1">{
                 err := tx.Find(&amp;blockInfos).Error
                 if err != nil </span><span class="cov0" title="0">{
                         return err
                 }</span>
-                <span class="cov0" title="0">return nil</span>
+                <span class="cov8" title="1">return nil</span>
         }, &amp;sql.TxOptions{ReadOnly: true})
-        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
                 return blockInfos, fmt.Errorf("could not get block infos: %w", err)
         }</span>
 
-        <span class="cov0" title="0">return blockInfos, nil</span>
+        <span class="cov8" title="1">return blockInfos, nil</span>
 }
 </pre>
 		
@@ -6113,28 +6113,28 @@ type HealingOpts struct {
         ConnectionFactory proto.ConnectionFactory
 }
 
-func (o *HealingOpts) Validate() error <span class="cov0" title="0">{
+func (o *HealingOpts) Validate() error <span class="cov8" title="1">{
         if o.Logger == nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("logger is required")
         }</span>
 
-        <span class="cov0" title="0">if o.NumReplicas &gt;= 255 </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if o.NumReplicas &gt;= 255 </span><span class="cov0" title="0">{
                 return fmt.Errorf("number of replicas must be less than 256")
         }</span>
 
-        <span class="cov0" title="0">if o.NumReplicas == 0 </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if o.NumReplicas == 0 </span><span class="cov0" title="0">{
                 return fmt.Errorf("num replicas is required")
         }</span>
 
-        <span class="cov0" title="0">if o.FileService == nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if o.FileService == nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("fileService is required")
         }</span>
 
-        <span class="cov0" title="0">if o.ConnectionFactory == nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if o.ConnectionFactory == nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("connection factory is required")
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
 type HealingService interface {
@@ -6150,13 +6150,13 @@ type healingService struct {
 
 var _ HealingService = &amp;healingService{}
 
-func NewHealingService(opts HealingOpts) (HealingService, error) <span class="cov0" title="0">{
+func NewHealingService(opts HealingOpts) (HealingService, error) <span class="cov8" title="1">{
         err := opts.Validate()
         if err != nil </span><span class="cov0" title="0">{
                 return nil, fmt.Errorf("invalid options: %w", err)
         }</span>
 
-        <span class="cov0" title="0">return &amp;healingService{
+        <span class="cov8" title="1">return &amp;healingService{
                 Opts:  opts,
                 Nodes: map[string]time.Time{},
                 Lock:  sync.RWMutex{},
@@ -6379,19 +6379,19 @@ type Permissions struct {
         OtherPermission Permission `gorm:"embedded;embeddedPrefix:other_"`
 }
 
-func (p *Permissions) BeforeSave(_ *gorm.DB) error <span class="cov0" title="0">{
+func (p *Permissions) BeforeSave(_ *gorm.DB) error <span class="cov8" title="1">{
         p.Owner = strings.TrimSpace(p.Owner)
         p.Group = strings.TrimSpace(p.Group)
 
-        if len(p.Owner) == 0 </span><span class="cov0" title="0">{
+        if len(p.Owner) == 0 </span><span class="cov8" title="1">{
                 return fmt.Errorf("owner is empty")
         }</span>
 
-        <span class="cov0" title="0">if len(p.Group) == 0 </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if len(p.Group) == 0 </span><span class="cov8" title="1">{
                 return fmt.Errorf("group is empty")
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 </pre>
 		
@@ -6414,68 +6414,68 @@ func (p *principal) Groups() []string <span class="cov0" title="0">{
         return p.groups
 }</span>
 
-func NewPrincipal(user User) Principal <span class="cov0" title="0">{
+func NewPrincipal(user User) Principal <span class="cov8" title="1">{
         var groups []string
 
-        for _, group := range user.Groups </span><span class="cov0" title="0">{
+        for _, group := range user.Groups </span><span class="cov8" title="1">{
                 groups = append(groups, group.Name)
         }</span>
 
-        <span class="cov0" title="0">return &amp;principal{
+        <span class="cov8" title="1">return &amp;principal{
                 user:   user.Name,
                 groups: groups,
         }</span>
 }
 
-func (p principal) ComputePrivileges(hasPermissionList ...HasPermissions) Privileges <span class="cov0" title="0">{
+func (p principal) ComputePrivileges(hasPermissionList ...HasPermissions) Privileges <span class="cov8" title="1">{
         canRead := false
         canWrite := false
         canDelete := false
 
-        for _, hasPermissions := range hasPermissionList </span><span class="cov0" title="0">{
+        for _, hasPermissions := range hasPermissionList </span><span class="cov8" title="1">{
                 permissions := hasPermissions.GetPermissions()
 
                 if permissions.OtherPermission.Read </span><span class="cov0" title="0">{
                         canRead = true
                 }</span>
 
-                <span class="cov0" title="0">if permissions.OtherPermission.Write </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">if permissions.OtherPermission.Write </span><span class="cov0" title="0">{
                         canWrite = true
                 }</span>
 
-                <span class="cov0" title="0">if permissions.OtherPermission.Delete </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">if permissions.OtherPermission.Delete </span><span class="cov0" title="0">{
                         canDelete = true
                 }</span>
 
-                <span class="cov0" title="0">if permissions.Owner == p.user </span><span class="cov0" title="0">{
-                        if permissions.OwnerPermission.Read </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">if permissions.Owner == p.user </span><span class="cov8" title="1">{
+                        if permissions.OwnerPermission.Read </span><span class="cov8" title="1">{
                                 canRead = true
                         }</span>
 
-                        <span class="cov0" title="0">if permissions.OwnerPermission.Write </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">if permissions.OwnerPermission.Write </span><span class="cov8" title="1">{
                                 canWrite = true
                         }</span>
 
-                        <span class="cov0" title="0">if permissions.OwnerPermission.Delete </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">if permissions.OwnerPermission.Delete </span><span class="cov8" title="1">{
                                 canDelete = true
                         }</span>
                 }
 
-                <span class="cov0" title="0">for _, group := range p.groups </span><span class="cov0" title="0">{
-                        if permissions.Group == group </span><span class="cov0" title="0">{
-                                if permissions.GroupPermission.Read </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">for _, group := range p.groups </span><span class="cov8" title="1">{
+                        if permissions.Group == group </span><span class="cov8" title="1">{
+                                if permissions.GroupPermission.Read </span><span class="cov8" title="1">{
                                         canRead = true
                                 }</span>
 
-                                <span class="cov0" title="0">if permissions.GroupPermission.Write </span><span class="cov0" title="0">{
+                                <span class="cov8" title="1">if permissions.GroupPermission.Write </span><span class="cov0" title="0">{
                                         canWrite = true
                                 }</span>
 
-                                <span class="cov0" title="0">if permissions.GroupPermission.Delete </span><span class="cov0" title="0">{
+                                <span class="cov8" title="1">if permissions.GroupPermission.Delete </span><span class="cov8" title="1">{
                                         canDelete = true
                                 }</span>
 
-                                <span class="cov0" title="0">if canRead &amp;&amp; canWrite &amp;&amp; canDelete </span><span class="cov0" title="0">{
+                                <span class="cov8" title="1">if canRead &amp;&amp; canWrite &amp;&amp; canDelete </span><span class="cov0" title="0">{
                                         return Privileges{
                                                 Read:   true,
                                                 Write:  true,
@@ -6485,7 +6485,7 @@ func (p principal) ComputePrivileges(hasPermissionList ...HasPermissions) Privil
                         }
                 }
 
-                <span class="cov0" title="0">if canRead &amp;&amp; canWrite &amp;&amp; canDelete </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">if canRead &amp;&amp; canWrite &amp;&amp; canDelete </span><span class="cov8" title="1">{
                         return Privileges{
                                 Read:   true,
                                 Write:  true,
@@ -6494,7 +6494,7 @@ func (p principal) ComputePrivileges(hasPermissionList ...HasPermissions) Privil
                 }</span>
         }
 
-        <span class="cov0" title="0">return Privileges{
+        <span class="cov8" title="1">return Privileges{
                 Read:   canRead,
                 Write:  canWrite,
                 Delete: canDelete,
@@ -6525,7 +6525,7 @@ type Privileges struct {
         Delete bool
 }
 
-func (p Privileges) Union(o Privileges) Privileges <span class="cov0" title="0">{
+func (p Privileges) Union(o Privileges) Privileges <span class="cov8" title="1">{
         return Privileges{
                 Read:   p.Read &amp;&amp; o.Read,
                 Write:  p.Write &amp;&amp; o.Write,
@@ -6599,29 +6599,29 @@ type SecurityServiceOpts struct {
         TokenExperiation time.Duration
 }
 
-func (o *SecurityServiceOpts) Validate() error <span class="cov0" title="0">{
+func (o *SecurityServiceOpts) Validate() error <span class="cov8" title="1">{
         if o.Logger == nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("logger is required")
         }</span>
-        <span class="cov0" title="0">if o.DB == nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if o.DB == nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("db is required")
         }</span>
-        <span class="cov0" title="0">if o.TokenExperiation == 0 </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if o.TokenExperiation == 0 </span><span class="cov0" title="0">{
                 return fmt.Errorf("token expiration is required")
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
 type securityService struct {
         Opts SecurityServiceOpts
 }
 
-func NewSecurityService(opts SecurityServiceOpts) (SecurityService, error) <span class="cov0" title="0">{
+func NewSecurityService(opts SecurityServiceOpts) (SecurityService, error) <span class="cov8" title="1">{
         if err := opts.Validate(); err != nil </span><span class="cov0" title="0">{
                 return nil, fmt.Errorf("options are invalid: %w", err)
         }</span>
-        <span class="cov0" title="0">s := &amp;securityService{
+        <span class="cov8" title="1">s := &amp;securityService{
                 Opts: opts,
         }
         return s, nil</span>
