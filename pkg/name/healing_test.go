@@ -20,7 +20,7 @@ func TestNewHealingService(t *testing.T) {
 		NodeExpiration:    24 * time.Hour,
 		ConnectionFactory: connectionFactory,
 	}
-	service, error := name.NewHealingService(opts)
-	assert.NoError(t, error)
+	service, err := name.NewHealingService(opts)
+	assert.NoError(t, err)
 	assert.NotNil(t, service)
 }
