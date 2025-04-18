@@ -156,14 +156,18 @@ func (s *service) GetBlocks() ([]BlockInfo, error) {
 }
 
 func (s *service) WriteBlock(id string, path string, sequence uint64, data []byte) error {
-	dataFilePath := filepath.Join(s.opts.Dir, id)
+	trimmedId := strings.TrimSpace(id)
+	if len(trimmedId) == 0 {
+		return fmt.Errorf("block id is empty")
+	}
+	dataFilePath := filepath.Join(s.opts.Dir, trimmedId)
 	err := os.WriteFile(dataFilePath, data, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write data file to path %s: %w", dataFilePath, err)
 	}
 
 	blockInfo := BlockInfo{
-		ID:           id,
+		ID:           trimmedId,
 		Sequence:     sequence,
 		Length:       uint32(len(data)),
 		Path:         path,
@@ -180,7 +184,7 @@ func (s *service) WriteBlock(id string, path string, sequence uint64, data []byt
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create block info: %w", err)
+		return fmt.Errorf("failed to write block: %w", err)
 	}
 
 	_, err = s.opts.NotificationClient.NotifyBlockAdded(context.Background(), &proto.NotifyBlockAddedRequest{
@@ -231,7 +235,9 @@ func (s *service) DeleteBlock(id string) error {
 
 	err = os.Remove(path)
 	if err != nil {
-		return fmt.Errorf("failed to remove data file: %w", err)
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to remove data file: %w", err)
+		}
 	}
 
 	return nil
@@ -311,7 +317,6 @@ func (s *service) HealthCheck() error {
 			if err != nil {
 				allErrors = append(allErrors, fmt.Errorf("failed to delete block info: %w", err))
 			}
-
 		}
 	}
 

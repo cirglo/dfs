@@ -49,7 +49,7 @@ func main() {
 	connectionFactory := proto.NewInsecureConnectionFactory()
 
 	log.WithField("name-node", *nameNodeFlag).Info("Connecting to name node")
-	conn, err := connectionFactory(*nameNodeFlag)
+	conn, err := connectionFactory.CreateConnection(*nameNodeFlag)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to connect to name node")
 	}

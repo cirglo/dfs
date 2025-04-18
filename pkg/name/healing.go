@@ -181,7 +181,7 @@ func (s *healingService) findDestinations(currentLocations []string, count int) 
 }
 
 func (s *healingService) copyBlock(blockId string, source string, dest string) {
-	connection, err := s.Opts.ConnectionFactory(source)
+	connection, err := s.Opts.ConnectionFactory.CreateConnection(source)
 	if err != nil {
 		s.Opts.Logger.WithError(err).WithField("host", dest).Error("could not create connection")
 		return

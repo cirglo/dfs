@@ -5,10 +5,19 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type ConnectionFactory func(host string) (*grpc.ClientConn, error)
+type ConnectionFactory interface {
+	CreateConnection(target string) (*grpc.ClientConn, error)
+}
+
+type insecureConnectionFactory struct {
+}
+
+var _ ConnectionFactory = &insecureConnectionFactory{}
+
+func (i insecureConnectionFactory) CreateConnection(target string) (*grpc.ClientConn, error) {
+	return grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+}
 
 func NewInsecureConnectionFactory() ConnectionFactory {
-	return func(host string) (*grpc.ClientConn, error) {
-		return grpc.NewClient(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	}
+	return &insecureConnectionFactory{}
 }

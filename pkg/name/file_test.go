@@ -23,7 +23,8 @@ func createDB(t *testing.T) *gorm.DB {
 		name.Permissions{},
 		name.FileInfo{},
 		name.Permission{},
-		name.BlockInfo{})
+		name.BlockInfo{},
+		name.Location{})
 	assert.NoError(t, err)
 
 	return db
@@ -115,4 +116,52 @@ func TestFileService_CreateFile(t *testing.T) {
 	dirs, err = service.List(p, "/")
 	assert.NoError(t, err)
 	assert.Len(t, dirs, 0)
+}
+
+func TestFileService_GetAllBlockInfos_EmptyDB(t *testing.T) {
+	log := createLogger(t)
+	db := createDB(t)
+
+	service, err := name.NewFileService(name.FileServiceOpts{
+		Logger: log,
+		DB:     db,
+	})
+	assert.NoError(t, err)
+
+	blockInfos, err := service.GetAllBlockInfos()
+	assert.NoError(t, err)
+	assert.Len(t, blockInfos, 0)
+}
+
+func TestFileService_NodeRemoved(t *testing.T) {
+	log := createLogger(t)
+	db := createDB(t)
+
+	service, err := name.NewFileService(name.FileServiceOpts{
+		Logger: log,
+		DB:     db,
+	})
+	assert.NoError(t, err)
+
+	// Test removing a node that doesn't exist
+	err = service.NodeRemoved("nonexistent-node")
+	assert.NoError(t, err)
+
+	// Add a node and then remove it
+	err = db.Create(&name.BlockInfo{
+		ID: "block1",
+		Locations: []name.Location{
+			{Host: "host1"},
+		},
+	}).Error
+	assert.NoError(t, err)
+
+	err = service.NodeRemoved("host1")
+	assert.NoError(t, err)
+
+	// Verify the node was removed
+	var blockInfo name.BlockInfo
+	err = db.First(&blockInfo, "id = ?", "block1").Error
+	assert.NoError(t, err)
+	assert.Len(t, blockInfo.Locations, 0)
 }
