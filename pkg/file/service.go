@@ -1,34 +1,25 @@
-package name
+package file
 
 import (
 	"database/sql"
 	"fmt"
 	"github.com/cirglo.com/dfs/pkg/proto"
+	"github.com/cirglo.com/dfs/pkg/security"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"sort"
 	"strings"
-	"time"
 )
 
-type BlockReport struct {
-	ID       string
-	Path     string
-	Hosts    []string
-	Sequence uint64
-	Length   uint32
-	CRC      uint32
-}
-
-type FileService interface {
-	Stat(p Principal, path string) (FileInfo, error)
-	List(p Principal, path string) ([]FileInfo, error)
-	CreateFile(p Principal, path string, perms Permissions) (FileInfo, error)
-	CreateDir(p Principal, path string, perms Permissions) (FileInfo, error)
-	DeleteFile(p Principal, path string) error
-	DeleteDir(p Principal, path string) error
-	GetBlockInfos(p Principal, path string) ([]BlockInfo, error)
+type Service interface {
+	Stat(p security.Principal, path string) (FileInfo, error)
+	List(p security.Principal, path string) ([]FileInfo, error)
+	CreateFile(p security.Principal, path string, perms security.Permissions) (FileInfo, error)
+	CreateDir(p security.Principal, path string, perms security.Permissions) (FileInfo, error)
+	DeleteFile(p security.Principal, path string) error
+	DeleteDir(p security.Principal, path string) error
+	GetBlockInfos(p security.Principal, path string) ([]BlockInfo, error)
 	NotifyBlockPresent(n *proto.NotifyBlockPresentRequest) error
 	NotifyBlockAdded(n *proto.NotifyBlockAddedRequest) error
 	NotifyBlockRemoved(n *proto.NotifyBlockRemovedRequest) error
@@ -36,174 +27,12 @@ type FileService interface {
 	GetAllBlockInfos() ([]BlockInfo, error)
 }
 
-type FileInfo struct {
-	ID          uint64      `gorm:"autoIncrement;primaryKey"`
-	CreatedAt   time.Time   `gorm:"autoCreateTime"`
-	UpdatedAt   time.Time   `gorm:"autoUpdateTime"`
-	ParentID    *uint64     `gorm:"uniqueIndex:idx_fileinfo_name;foreignKey:id"`
-	Name        string      `gorm:"size:256;uniqueIndex:idx_fileinfo_name;not null"`
-	IsDir       bool        `gorm:"not null"`
-	Children    []FileInfo  `gorm:"foreignKey:ParentID"`
-	Permissions Permissions `gorm:"embedded;embeddedPrefix:permissions_"`
-	BlockInfos  []BlockInfo `gorm:"constraint:OnDelete:CASCADE"`
-}
-
-var _ HasPermissions = &FileInfo{}
-
-func (fi *FileInfo) GetSize() uint64 {
-	size := uint64(0)
-
-	for _, blockInfo := range fi.BlockInfos {
-		size += uint64(blockInfo.Length)
-	}
-
-	return size
-}
-
-func (fi *FileInfo) IsHealthy() bool {
-	blockInfos := fi.BlockInfos
-
-	sort.Slice(blockInfos, func(i, j int) bool {
-		return blockInfos[i].Sequence < blockInfos[j].Sequence
-	})
-
-	for i, blockInfo := range blockInfos {
-		if blockInfo.Sequence != uint64(i) {
-			return false
-		}
-
-		if len(blockInfo.Locations) == 0 {
-			return false
-		}
-	}
-
-	return true
-
-}
-
-func (fi *FileInfo) BeforeSave(_ *gorm.DB) error {
-	fi.Name = strings.TrimSpace(fi.Name)
-
-	if strings.Contains(fi.Name, "/") {
-		return fmt.Errorf("invalid name, cannot contain '/': '%s'", fi.Name)
-	}
-
-	if fi.IsDir {
-		if fi.ParentID == nil {
-			if len(fi.Name) > 0 {
-				return fmt.Errorf("root directory cannot have a name but was '%s'", fi.Name)
-			}
-		} else {
-			if len(fi.Name) == 0 {
-				return fmt.Errorf("directory must have a name")
-			}
-		}
-
-		if len(fi.BlockInfos) > 0 {
-			return fmt.Errorf("directory cannot have blocks")
-		}
-	} else {
-		if len(fi.Name) == 0 {
-			return fmt.Errorf("file must have a name")
-		}
-
-		if fi.ParentID == nil {
-			return fmt.Errorf("file must have a parent")
-		}
-
-		if len(fi.Children) > 0 {
-			return fmt.Errorf("file cannot have children")
-		}
-	}
-
-	return nil
-}
-
-func (fi *FileInfo) AfterFind(tx *gorm.DB) error {
-	blockInfos := fi.BlockInfos
-
-	sort.Slice(blockInfos, func(i, j int) bool {
-		return blockInfos[i].Sequence < blockInfos[j].Sequence
-	})
-
-	return nil
-}
-
-func (fi *FileInfo) FindChild(name string) (FileInfo, bool) {
-	for _, child := range fi.Children {
-		if child.Name == name {
-			return child, true
-		}
-	}
-
-	return FileInfo{}, false
-}
-
-func (fi *FileInfo) GetPermissions() Permissions {
-	return fi.Permissions
-}
-
-type BlockInfo struct {
-	ID         string     `gorm:"primaryKey;not null"`
-	CreatedAt  time.Time  `gorm:"autoCreateTime"`
-	UpdatedAt  time.Time  `gorm:"autoUpdateTime"`
-	Locations  []Location `gorm:"constraint:OnDelete:CASCADE"`
-	FileInfoID uint64     `gorm:"uniqueIndex:idx_blockinfo_sequence;not null"`
-	Sequence   uint64     `gorm:"uniqueIndex:idx_blockinfo_sequence;not null"`
-	Length     uint32     `gorm:"not null"`
-	CRC        uint32     `gorm:"not null"`
-}
-
-func (bi *BlockInfo) BeforeSave(_ *gorm.DB) error {
-	bi.ID = strings.TrimSpace(bi.ID)
-
-	if len(bi.ID) == 0 {
-		return fmt.Errorf("ID cannot be empty")
-	}
-
-	return nil
-}
-
-func (bi *BlockInfo) AfterFind(tx *gorm.DB) error {
-	locations := bi.Locations
-
-	sort.Slice(locations, func(i, j int) bool {
-		return locations[i].Host < locations[j].Host
-	})
-
-	return nil
-}
-
-func (bi *BlockInfo) ContainsHost(host string) bool {
-	for _, location := range bi.Locations {
-		if location.Host == host {
-			return true
-		}
-	}
-
-	return false
-}
-
-type Location struct {
-	BlockInfoID string `gorm:"uniqueIndex:idx_location;not null"`
-	Host        string `gorm:"uniqueIndex:idx_location;not null"`
-}
-
-func (l *Location) BeforeSave(_ *gorm.DB) error {
-	l.Host = strings.TrimSpace(l.Host)
-	if len(l.Host) == 0 {
-		return fmt.Errorf("location host is empty")
-	}
-
-	return nil
-}
-
-type FileServiceOpts struct {
+type ServiceOpts struct {
 	Logger *logrus.Logger
 	DB     *gorm.DB
 }
 
-func (f FileServiceOpts) Validate() error {
+func (f ServiceOpts) Validate() error {
 	if f.Logger == nil {
 		return fmt.Errorf("logger is required")
 	}
@@ -213,18 +42,18 @@ func (f FileServiceOpts) Validate() error {
 	return nil
 }
 
-type fileService struct {
-	Opts FileServiceOpts
+type service struct {
+	Opts ServiceOpts
 }
 
-var _ FileService = &fileService{}
+var _ Service = &service{}
 
-func NewFileService(opts FileServiceOpts) (FileService, error) {
+func NewService(opts ServiceOpts) (Service, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid file service options: %w", err)
 	}
 
-	fileService := fileService{
+	fileService := service{
 		Opts: opts,
 	}
 
@@ -235,20 +64,20 @@ func NewFileService(opts FileServiceOpts) (FileService, error) {
 			opts.Logger.WithError(err).Info("Could not find root directory. Creating...")
 			rootDir.IsDir = true
 			rootDir.ParentID = nil
-			rootDir.Permissions = Permissions{
+			rootDir.Permissions = security.Permissions{
 				Owner: "root",
 				Group: "root",
-				OwnerPermission: Permission{
+				OwnerPermission: security.Permission{
 					Read:   true,
 					Write:  true,
 					Delete: true,
 				},
-				GroupPermission: Permission{
+				GroupPermission: security.Permission{
 					Read:   true,
 					Write:  true,
 					Delete: true,
 				},
-				OtherPermission: Permission{
+				OtherPermission: security.Permission{
 					Read:   true,
 					Write:  true,
 					Delete: true,
@@ -272,7 +101,7 @@ func NewFileService(opts FileServiceOpts) (FileService, error) {
 	return &fileService, nil
 }
 
-func (f *fileService) cleanPath(path string) (string, string, string, error) {
+func (f *service) cleanPath(path string) (string, string, string, error) {
 	trimmedPath := strings.TrimSpace(path)
 	trimmedPath = strings.TrimSuffix(trimmedPath, "/")
 
@@ -304,7 +133,7 @@ func (f *fileService) cleanPath(path string) (string, string, string, error) {
 	return trimmedPath, parentPath, name, nil
 }
 
-func (f *fileService) lookupRoot(tx *gorm.DB) (FileInfo, error) {
+func (f *service) lookupRoot(tx *gorm.DB) (FileInfo, error) {
 	fileInfo := FileInfo{}
 	err := tx.Where(&FileInfo{ParentID: nil}, "ParentID").Preload(clause.Associations).First(&fileInfo).Error
 	if err != nil {
@@ -318,7 +147,7 @@ func (f *fileService) lookupRoot(tx *gorm.DB) (FileInfo, error) {
 	return fileInfo, nil
 }
 
-func (f *fileService) lookup(tx *gorm.DB, path string) ([]FileInfo, error) {
+func (f *service) lookup(tx *gorm.DB, path string) ([]FileInfo, error) {
 	var fileInfos []FileInfo
 
 	rootDir, err := f.lookupRoot(tx)
@@ -373,8 +202,8 @@ func (f *fileService) lookup(tx *gorm.DB, path string) ([]FileInfo, error) {
 	return fileInfos, nil
 }
 
-func (f *fileService) computePrivileges(p Principal, fileInfos ...FileInfo) Privileges {
-	hasPermissionsList := []HasPermissions{}
+func (f *service) computePrivileges(p security.Principal, fileInfos ...FileInfo) security.Privileges {
+	hasPermissionsList := []security.HasPermissions{}
 
 	for _, fileInfo := range fileInfos {
 		hasPermissionsList = append(hasPermissionsList, &fileInfo)
@@ -383,19 +212,19 @@ func (f *fileService) computePrivileges(p Principal, fileInfos ...FileInfo) Priv
 	return p.ComputePrivileges(hasPermissionsList...)
 }
 
-func (f *fileService) canRead(p Principal, fileInfos ...FileInfo) bool {
+func (f *service) canRead(p security.Principal, fileInfos ...FileInfo) bool {
 	return f.computePrivileges(p, fileInfos...).Read
 }
 
-func (f *fileService) canWrite(p Principal, fileInfos ...FileInfo) bool {
+func (f *service) canWrite(p security.Principal, fileInfos ...FileInfo) bool {
 	return f.computePrivileges(p, fileInfos...).Write
 }
 
-func (f *fileService) canDelete(p Principal, fileInfos ...FileInfo) bool {
+func (f *service) canDelete(p security.Principal, fileInfos ...FileInfo) bool {
 	return f.computePrivileges(p, fileInfos...).Delete
 }
 
-func (f *fileService) Stat(p Principal, path string) (FileInfo, error) {
+func (f *service) Stat(p security.Principal, path string) (FileInfo, error) {
 	var fileInfo FileInfo
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
 		fileInfos, err := f.lookup(tx, path)
@@ -418,7 +247,7 @@ func (f *fileService) Stat(p Principal, path string) (FileInfo, error) {
 	return fileInfo, nil
 }
 
-func (f *fileService) List(p Principal, path string) ([]FileInfo, error) {
+func (f *service) List(p security.Principal, path string) ([]FileInfo, error) {
 	var children []FileInfo
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
 		fileInfos, err := f.lookup(tx, path)
@@ -446,7 +275,7 @@ func (f *fileService) List(p Principal, path string) ([]FileInfo, error) {
 	return children, nil
 }
 
-func (f *fileService) CreateFile(p Principal, path string, perms Permissions) (FileInfo, error) {
+func (f *service) CreateFile(p security.Principal, path string, perms security.Permissions) (FileInfo, error) {
 	var fileInfo FileInfo
 
 	_, parentPath, name, err := f.cleanPath(path)
@@ -491,7 +320,7 @@ func (f *fileService) CreateFile(p Principal, path string, perms Permissions) (F
 	return fileInfo, nil
 }
 
-func (f *fileService) CreateDir(p Principal, path string, perms Permissions) (FileInfo, error) {
+func (f *service) CreateDir(p security.Principal, path string, perms security.Permissions) (FileInfo, error) {
 	var fileInfo FileInfo
 
 	_, parentPath, name, err := f.cleanPath(path)
@@ -536,7 +365,7 @@ func (f *fileService) CreateDir(p Principal, path string, perms Permissions) (Fi
 	return fileInfo, nil
 }
 
-func (f *fileService) DeleteFile(p Principal, path string) error {
+func (f *service) DeleteFile(p security.Principal, path string) error {
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
 		fileInfos, err := f.lookup(tx, path)
 		if err != nil {
@@ -571,7 +400,7 @@ func (f *fileService) DeleteFile(p Principal, path string) error {
 	return nil
 }
 
-func (f *fileService) DeleteDir(p Principal, path string) error {
+func (f *service) DeleteDir(p security.Principal, path string) error {
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
 		fileInfos, err := f.lookup(tx, path)
 		if err != nil {
@@ -609,7 +438,7 @@ func (f *fileService) DeleteDir(p Principal, path string) error {
 	return nil
 }
 
-func (f *fileService) GetBlockInfos(p Principal, path string) ([]BlockInfo, error) {
+func (f *service) GetBlockInfos(p security.Principal, path string) ([]BlockInfo, error) {
 	var blockInfos []BlockInfo
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
 		fileInfos, err := f.lookup(tx, path)
@@ -636,7 +465,7 @@ func (f *fileService) GetBlockInfos(p Principal, path string) ([]BlockInfo, erro
 	return blockInfos, nil
 }
 
-func (f *fileService) NotifyBlockPresent(n *proto.NotifyBlockPresentRequest) error {
+func (f *service) NotifyBlockPresent(n *proto.NotifyBlockPresentRequest) error {
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
 		blockInfo := BlockInfo{}
 
@@ -706,7 +535,7 @@ func (f *fileService) NotifyBlockPresent(n *proto.NotifyBlockPresentRequest) err
 	return nil
 }
 
-func (f *fileService) NotifyBlockAdded(n *proto.NotifyBlockAddedRequest) error {
+func (f *service) NotifyBlockAdded(n *proto.NotifyBlockAddedRequest) error {
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
 		blockInfo := BlockInfo{}
 
@@ -773,7 +602,7 @@ func (f *fileService) NotifyBlockAdded(n *proto.NotifyBlockAddedRequest) error {
 
 	return nil
 }
-func (f *fileService) NotifyBlockRemoved(n *proto.NotifyBlockRemovedRequest) error {
+func (f *service) NotifyBlockRemoved(n *proto.NotifyBlockRemovedRequest) error {
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
 		blockInfo := BlockInfo{}
 
@@ -821,7 +650,7 @@ func (f *fileService) NotifyBlockRemoved(n *proto.NotifyBlockRemovedRequest) err
 	return nil
 }
 
-func (f *fileService) NodeRemoved(host string) error {
+func (f *service) NodeRemoved(host string) error {
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {
 		blockInfos := []BlockInfo{}
 
@@ -850,7 +679,7 @@ func (f *fileService) NodeRemoved(host string) error {
 	return nil
 }
 
-func (f *fileService) GetAllBlockInfos() ([]BlockInfo, error) {
+func (f *service) GetAllBlockInfos() ([]BlockInfo, error) {
 	blockInfos := []BlockInfo{}
 
 	err := f.Opts.DB.Transaction(func(tx *gorm.DB) error {

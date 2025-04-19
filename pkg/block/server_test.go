@@ -1,23 +1,23 @@
-package node_test
+package block_test
 
 import (
 	"context"
+	"github.com/cirglo.com/dfs/pkg/block"
 	"testing"
 
 	"github.com/cirglo.com/dfs/pkg/mocks"
-	"github.com/cirglo.com/dfs/pkg/node"
 	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/stretchr/testify/assert"
 )
 
 func createServer(t *testing.T, blockService *mocks.BlockService, connectionFactory *mocks.ConnectionFactory) proto.NodeServer {
 	logger := createLogger(t)
-	opts := node.ServerOpts{
+	opts := block.ServerOpts{
 		Logger:            logger,
 		BlockService:      blockService,
 		ConnectionFactory: connectionFactory,
 	}
-	server, err := node.NewServer(opts)
+	server, err := block.NewServer(opts)
 	assert.NoError(t, err)
 	return server
 }
@@ -27,7 +27,7 @@ func TestServer_GetBlockInfos(t *testing.T) {
 	connectionFactory := mocks.NewConnectionFactory(t)
 	server := createServer(t, blockService, connectionFactory)
 
-	blockService.On("GetBlocks").Return([]node.BlockInfo{
+	blockService.On("GetBlocks").Return([]BlockInfo{
 		{ID: "block1", CRC: 123, Sequence: 1, Length: 100},
 	}, nil)
 
@@ -42,7 +42,7 @@ func TestServer_GetBlockInfo(t *testing.T) {
 	connectionFactory := mocks.NewConnectionFactory(t)
 	server := createServer(t, blockService, connectionFactory)
 
-	blockService.On("GetBlocks").Return([]node.BlockInfo{
+	blockService.On("GetBlocks").Return([]BlockInfo{
 		{ID: "block1", CRC: 123, Sequence: 1, Length: 100, Path: "/path/to/block"},
 	}, nil)
 
@@ -57,7 +57,7 @@ func TestServer_GetBlock(t *testing.T) {
 	connectionFactory := mocks.NewConnectionFactory(t)
 	server := createServer(t, blockService, connectionFactory)
 
-	blockService.On("ReadBlock", "block1").Return([]byte("data"), node.BlockInfo{
+	blockService.On("ReadBlock", "block1").Return([]byte("data"), BlockInfo{
 		ID: "block1", CRC: 123, Sequence: 1, Length: 100, Path: "/path/to/block",
 	}, nil)
 

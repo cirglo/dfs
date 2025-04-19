@@ -1,7 +1,7 @@
-package name_test
+package security_test
 
 import (
-	"github.com/cirglo.com/dfs/pkg/name"
+	"github.com/cirglo.com/dfs/pkg/security"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
@@ -18,11 +18,11 @@ func createSecurityDB(t *testing.T) *gorm.DB {
 	})
 	assert.NoError(t, err)
 	err = db.AutoMigrate(
-		name.User{},
-		name.Group{},
-		name.Token{},
-		name.Permissions{},
-		name.Permission{})
+		security.User{},
+		security.Group{},
+		security.Token{},
+		security.Permissions{},
+		security.Permission{})
 	assert.NoError(t, err)
 
 	return db
@@ -31,12 +31,12 @@ func createSecurityDB(t *testing.T) *gorm.DB {
 func TestNewSecurityService(t *testing.T) {
 	logger := logrus.New()
 	db := createSecurityDB(t)
-	opts := name.SecurityServiceOpts{
+	opts := security.Opts{
 		Logger:           logger,
 		DB:               db,
 		TokenExperiation: 1 * time.Hour,
 	}
-	service, err := name.NewSecurityService(opts)
+	service, err := security.NewService(opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, service)
 }

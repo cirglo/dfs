@@ -1,9 +1,9 @@
-package node_test
+package block_test
 
 import (
 	"fmt"
+	"github.com/cirglo.com/dfs/pkg/block"
 	"github.com/cirglo.com/dfs/pkg/mocks"
-	"github.com/cirglo.com/dfs/pkg/node"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +22,7 @@ func createDB(t *testing.T) *gorm.DB {
 		DisableNestedTransaction: true,
 	})
 	assert.NoError(t, err)
-	err = db.AutoMigrate(node.BlockInfo{})
+	err = db.AutoMigrate(block.BlockInfo{})
 	assert.NoError(t, err)
 
 	return db
@@ -52,14 +52,14 @@ func TestBlockService_Write_Read_Delete_Block(t *testing.T) {
 	db := createDB(t)
 	dir := createDir(t)
 	notificationClient := mocks.NewNotificationClient(t)
-	opts := node.BlockServiceOpts{
+	opts := block.Opts{
 		Logger:             log,
 		Host:               "whoof:2345",
 		DB:                 db,
 		Dir:                dir,
 		NotificationClient: notificationClient,
 	}
-	service, err := node.NewBlockService(opts)
+	service, err := block.NewService(opts)
 	assert.NoError(t, err)
 
 	blocks, err := service.GetBlocks()
@@ -117,14 +117,14 @@ func TestBlockService_GetBlockIds(t *testing.T) {
 	db := createDB(t)
 	dir := createDir(t)
 	notificationClient := mocks.NewNotificationClient(t)
-	opts := node.BlockServiceOpts{
+	opts := block.Opts{
 		Logger:             log,
 		Host:               "whoof:2345",
 		DB:                 db,
 		Dir:                dir,
 		NotificationClient: notificationClient,
 	}
-	service, err := node.NewBlockService(opts)
+	service, err := block.NewService(opts)
 	assert.NoError(t, err)
 
 	notificationClient.EXPECT().NotifyBlockAdded(mock.Anything, mock.Anything).Return(nil, nil).Once()
@@ -147,14 +147,14 @@ func TestBlockService_HealthCheck(t *testing.T) {
 	db := createDB(t)
 	dir := createDir(t)
 	notificationClient := mocks.NewNotificationClient(t)
-	opts := node.BlockServiceOpts{
+	opts := block.Opts{
 		Logger:             log,
 		Host:               "whoof:2345",
 		DB:                 db,
 		Dir:                dir,
 		NotificationClient: notificationClient,
 	}
-	service, err := node.NewBlockService(opts)
+	service, err := block.NewService(opts)
 	assert.NoError(t, err)
 
 	notificationClient.EXPECT().NotifyBlockAdded(mock.Anything, mock.Anything).Return(nil, nil).Once()
@@ -191,14 +191,14 @@ func TestBlockService_ValidateCRC(t *testing.T) {
 	db := createDB(t)
 	dir := createDir(t)
 	notificationClient := mocks.NewNotificationClient(t)
-	opts := node.BlockServiceOpts{
+	opts := block.Opts{
 		Logger:             log,
 		Host:               "whoof:2345",
 		DB:                 db,
 		Dir:                dir,
 		NotificationClient: notificationClient,
 	}
-	service, err := node.NewBlockService(opts)
+	service, err := block.NewService(opts)
 	assert.NoError(t, err)
 
 	notificationClient.EXPECT().NotifyBlockAdded(mock.Anything, mock.Anything).Return(nil, nil).Once()
@@ -235,14 +235,14 @@ func TestBlockService_WriteBlock_EmptyID(t *testing.T) {
 	db := createDB(t)
 	dir := createDir(t)
 	notificationClient := mocks.NewNotificationClient(t)
-	opts := node.BlockServiceOpts{
+	opts := block.Opts{
 		Logger:             log,
 		Host:               "whoof:2345",
 		DB:                 db,
 		Dir:                dir,
 		NotificationClient: notificationClient,
 	}
-	service, err := node.NewBlockService(opts)
+	service, err := block.NewService(opts)
 	assert.NoError(t, err)
 
 	err = service.WriteBlock("", "/test.txt", 1, []byte("test data"))
@@ -257,14 +257,14 @@ func TestBlockService_WriteBlock_DuplicateID(t *testing.T) {
 	db := createDB(t)
 	dir := createDir(t)
 	notificationClient := mocks.NewNotificationClient(t)
-	opts := node.BlockServiceOpts{
+	opts := block.Opts{
 		Logger:             log,
 		Host:               "whoof:2345",
 		DB:                 db,
 		Dir:                dir,
 		NotificationClient: notificationClient,
 	}
-	service, err := node.NewBlockService(opts)
+	service, err := block.NewService(opts)
 	assert.NoError(t, err)
 
 	notificationClient.EXPECT().NotifyBlockAdded(mock.Anything, mock.Anything).Return(nil, nil).Once()
@@ -284,14 +284,14 @@ func TestBlockService_WriteBlock_InvalidPath(t *testing.T) {
 	db := createDB(t)
 	dir := createDir(t)
 	notificationClient := mocks.NewNotificationClient(t)
-	opts := node.BlockServiceOpts{
+	opts := block.Opts{
 		Logger:             log,
 		Host:               "whoof:2345",
 		DB:                 db,
 		Dir:                dir,
 		NotificationClient: notificationClient,
 	}
-	service, err := node.NewBlockService(opts)
+	service, err := block.NewService(opts)
 	assert.NoError(t, err)
 
 	err = service.WriteBlock(uuid.New().String(), "", 1, []byte("test data"))
@@ -304,14 +304,14 @@ func TestBlockService_NotificationError(t *testing.T) {
 	db := createDB(t)
 	dir := createDir(t)
 	notificationClient := mocks.NewNotificationClient(t)
-	opts := node.BlockServiceOpts{
+	opts := block.Opts{
 		Logger:             log,
 		Host:               "whoof:2345",
 		DB:                 db,
 		Dir:                dir,
 		NotificationClient: notificationClient,
 	}
-	service, err := node.NewBlockService(opts)
+	service, err := block.NewService(opts)
 	assert.NoError(t, err)
 
 	id := uuid.New().String()
@@ -332,14 +332,14 @@ func TestBlockService_MissingDirectory(t *testing.T) {
 	os.RemoveAll(dir) // Remove the directory to simulate missing directory
 
 	notificationClient := mocks.NewNotificationClient(t)
-	opts := node.BlockServiceOpts{
+	opts := block.Opts{
 		Logger:             log,
 		Host:               "whoof:2345",
 		DB:                 db,
 		Dir:                dir,
 		NotificationClient: notificationClient,
 	}
-	_, err := node.NewBlockService(opts)
+	_, err := block.NewService(opts)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "could not stat dir")
 }

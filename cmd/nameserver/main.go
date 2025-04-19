@@ -3,8 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/cirglo.com/dfs/pkg/name"
+	"github.com/cirglo.com/dfs/pkg/file"
+	"github.com/cirglo.com/dfs/pkg/healing"
+	"github.com/cirglo.com/dfs/pkg/notification"
 	"github.com/cirglo.com/dfs/pkg/proto"
+	"github.com/cirglo.com/dfs/pkg/security"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"net"
@@ -78,7 +81,7 @@ func main() {
 	log.Info("Database connection established")
 
 	log.Info("Creating services")
-	securityService, err := name.NewSecurityService(name.SecurityServiceOpts{
+	securityService, err := security.NewService(security.Opts{
 		Logger:           log,
 		DB:               db,
 		TokenExperiation: *tokenExpirationFlag,
@@ -87,7 +90,7 @@ func main() {
 		log.WithError(err).Fatal("Failed to create security service")
 	}
 
-	fileService, err := name.NewFileService(name.FileServiceOpts{
+	fileService, err := file.NewService(file.ServiceOpts{
 		Logger: log,
 		DB:     db,
 	})
@@ -96,12 +99,11 @@ func main() {
 	}
 
 	log.Info("Creating server")
-	server := name.Server{Opts: name.ServerOpts{
-		Logger:          log,
-		SecurityService: securityService,
-		FileService:     fileService}}
+	server := file.Server{Opts: file.ServerOpts{
+		Logger:      log,
+		FileService: fileService}}
 
-	healingService, err := name.NewHealingService(name.HealingOpts{
+	healingService, err := healing.NewService(healing.Opts{
 		Logger:            log,
 		NumReplicas:       *numReplicasFlag,
 		FileService:       fileService,
@@ -112,7 +114,7 @@ func main() {
 		log.WithError(err).Fatal("Failed to create healing service")
 	}
 
-	notificationServer := name.NotificationServer{
+	notificationServer := notification.Server{
 		FileService:    fileService,
 		HealingService: healingService,
 	}
@@ -152,13 +154,13 @@ func createDB(dialector gorm.Dialector) (*gorm.DB, error) {
 		return nil, fmt.Errorf("could not open database: %w", err)
 	}
 	err = db.AutoMigrate(
-		name.User{},
-		name.Group{},
-		name.Token{},
-		name.Permissions{},
-		name.FileInfo{},
-		name.Permission{},
-		name.BlockInfo{})
+		security.User{},
+		security.Group{},
+		security.Token{},
+		security.Permissions{},
+		file.FileInfo{},
+		security.Permission{},
+		file.BlockInfo{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to auto migrate: %w", err)
 	}

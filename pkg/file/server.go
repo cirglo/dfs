@@ -1,16 +1,18 @@
-package name
+package file
 
 import (
 	"context"
 	"fmt"
 	"github.com/cirglo.com/dfs/pkg/proto"
+	"github.com/cirglo.com/dfs/pkg/security"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type ServerOpts struct {
-	Logger          *logrus.Logger
-	SecurityService SecurityService
-	FileService     FileService
+	Logger      *logrus.Logger
+	FileService Service
 }
 
 type Server struct {
@@ -18,35 +20,21 @@ type Server struct {
 	Opts ServerOpts
 }
 
-func (s Server) Login(ctx context.Context, request *proto.LoginRequest) (*proto.LoginResponse, error) {
-	token, err := s.Opts.SecurityService.AuthenticateUser(request.GetUser(), request.GetHashedPassword())
-	if err != nil {
-		return nil, fmt.Errorf("login failed: %w", err)
-	}
+func (s Server) lookupPrincipal(ctx context.Context) (security.Principal, error) {
+	principal := ctx.Value("principal").(security.Principal)
 
-	return &proto.LoginResponse{
-		Token: token,
-	}, nil
+	return principal, nil
 }
 
-func (s Server) Logout(ctx context.Context, request *proto.LogoutRequest) (*proto.LogoutResponse, error) {
-	err := s.Opts.SecurityService.Logout(request.GetToken())
-	if err != nil {
-		return nil, fmt.Errorf("logout failed: %w", err)
-	}
-
-	return &proto.LogoutResponse{}, nil
-}
-
-func convertProtoPermission(permission *proto.Permission) Permission {
-	return Permission{
+func convertProtoPermission(permission *proto.Permission) security.Permission {
+	return security.Permission{
 		Read:  permission.GetRead(),
 		Write: permission.GetWrite(),
 	}
 }
 
-func convertProtoPermissions(permissions *proto.Permissions) Permissions {
-	return Permissions{
+func convertProtoPermissions(permissions *proto.Permissions) security.Permissions {
+	return security.Permissions{
 		Owner:           permissions.GetOwner(),
 		Group:           permissions.GetGroup(),
 		OwnerPermission: convertProtoPermission(permissions.GetOwnerPermission()),
@@ -55,14 +43,14 @@ func convertProtoPermissions(permissions *proto.Permissions) Permissions {
 	}
 }
 
-func convertToProtoPermission(permission Permission) *proto.Permission {
+func convertToProtoPermission(permission security.Permission) *proto.Permission {
 	return &proto.Permission{
 		Read:  permission.Read,
 		Write: permission.Write,
 	}
 }
 
-func convertToProtoPermissions(permissions Permissions) *proto.Permissions {
+func convertToProtoPermissions(permissions security.Permissions) *proto.Permissions {
 	return &proto.Permissions{
 		Owner:           permissions.Owner,
 		Group:           permissions.Group,
@@ -73,11 +61,10 @@ func convertToProtoPermissions(permissions Permissions) *proto.Permissions {
 }
 
 func (s Server) CreateFile(ctx context.Context, request *proto.CreateFileRequest) (*proto.CreateFileResponse, error) {
-	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	principal, err := s.lookupPrincipal(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lookup user: %w", err)
+		return nil, status.Error(codes.Unauthenticated, "not authenticated")
 	}
-	principal := NewPrincipal(user)
 	permissions := convertProtoPermissions(request.GetPermissions())
 	_, err = s.Opts.FileService.CreateFile(principal, request.GetPath(), permissions)
 	if err != nil {
@@ -87,11 +74,10 @@ func (s Server) CreateFile(ctx context.Context, request *proto.CreateFileRequest
 }
 
 func (s Server) CreateDir(ctx context.Context, request *proto.CreateDirRequest) (*proto.CreateDirResponse, error) {
-	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	principal, err := s.lookupPrincipal(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lookup user: %w", err)
+		return nil, status.Error(codes.Unauthenticated, "not authenticated")
 	}
-	principal := NewPrincipal(user)
 	permissions := convertProtoPermissions(request.GetPermissions())
 	_, err = s.Opts.FileService.CreateDir(principal, request.GetPath(), permissions)
 	if err != nil {
@@ -101,11 +87,10 @@ func (s Server) CreateDir(ctx context.Context, request *proto.CreateDirRequest) 
 }
 
 func (s Server) DeleteFile(ctx context.Context, request *proto.DeleteFileRequest) (*proto.DeleteFileResponse, error) {
-	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	principal, err := s.lookupPrincipal(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lookup user: %w", err)
+		return nil, status.Error(codes.Unauthenticated, "not authenticated")
 	}
-	principal := NewPrincipal(user)
 	err = s.Opts.FileService.DeleteFile(principal, request.GetPath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete file: %w", err)
@@ -114,11 +99,10 @@ func (s Server) DeleteFile(ctx context.Context, request *proto.DeleteFileRequest
 }
 
 func (s Server) DeleteDir(ctx context.Context, request *proto.DeleteDirRequest) (*proto.DeleteDirResponse, error) {
-	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	principal, err := s.lookupPrincipal(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lookup user: %w", err)
+		return nil, status.Error(codes.Unauthenticated, "not authenticated")
 	}
-	principal := NewPrincipal(user)
 	err = s.Opts.FileService.DeleteDir(principal, request.GetPath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete dir: %w", err)
@@ -139,12 +123,10 @@ func convertToProtoDirEntryFile(fileInfo FileInfo, parentDir string) *proto.DirE
 }
 
 func (s Server) List(ctx context.Context, request *proto.ListRequest) (*proto.ListResponse, error) {
-	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	principal, err := s.lookupPrincipal(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lookup user: %w", err)
+		return nil, status.Error(codes.Unauthenticated, "not authenticated")
 	}
-	principal := NewPrincipal(user)
-
 	fileInfos, err := s.Opts.FileService.List(principal, request.GetPath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to list path '%s': %w", request.GetPath(), err)
@@ -172,11 +154,10 @@ func convertToProtoStatBlockInfo(blockInfo BlockInfo) *proto.StatBlockInfo {
 }
 
 func (s Server) Stat(ctx context.Context, request *proto.StatRequest) (*proto.StatResponse, error) {
-	user, err := s.Opts.SecurityService.LookupUserByToken(request.GetToken())
+	principal, err := s.lookupPrincipal(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lookup user: %w", err)
+		return nil, status.Error(codes.Unauthenticated, "not authenticated")
 	}
-	principal := NewPrincipal(user)
 	fileInfo, err := s.Opts.FileService.Stat(principal, request.GetPath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to stat file '%s': %w", request.GetPath(), err)

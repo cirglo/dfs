@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	node "github.com/cirglo.com/dfs/pkg/node"
+	node "github.com/cirglo.com/dfs/pkg/block"
 	mock "github.com/stretchr/testify/mock"
 )
 

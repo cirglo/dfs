@@ -1,4 +1,4 @@
-package name
+package security
 
 import (
 	"crypto/rand"
@@ -40,7 +40,7 @@ func (t *Token) IsExpired() bool {
 	return t.ExpiresAt.Before(time.Now())
 }
 
-type SecurityService interface {
+type Service interface {
 	CreateUser(user User) error
 	DeleteUser(userName string) error
 	GetUser(userName string) (User, error)
@@ -57,13 +57,13 @@ type SecurityService interface {
 	LookupUserByToken(token string) (User, error)
 }
 
-type SecurityServiceOpts struct {
+type Opts struct {
 	Logger           *logrus.Logger
 	DB               *gorm.DB
 	TokenExperiation time.Duration
 }
 
-func (o *SecurityServiceOpts) Validate() error {
+func (o *Opts) Validate() error {
 	if o.Logger == nil {
 		return fmt.Errorf("logger is required")
 	}
@@ -78,10 +78,10 @@ func (o *SecurityServiceOpts) Validate() error {
 }
 
 type securityService struct {
-	Opts SecurityServiceOpts
+	Opts Opts
 }
 
-func NewSecurityService(opts SecurityServiceOpts) (SecurityService, error) {
+func NewService(opts Opts) (Service, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, fmt.Errorf("options are invalid: %w", err)
 	}

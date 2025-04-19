@@ -5,8 +5,6 @@ package name;
 option go_package = "./;proto";
 
 service Name {
-  rpc Login(LoginRequest) returns (LoginResponse);
-  rpc Logout(LogoutRequest) returns (LogoutResponse);
   rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
   rpc CreateDir(CreateDirRequest) returns (CreateDirResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
@@ -48,44 +46,24 @@ message StatBlockInfo {
   uint32 length = 7;
 }
 
-message LoginRequest {
-  string user = 1;
-  string hashedPassword = 2;
-}
-
-message LoginResponse {
-  string user = 1;
-  string token = 2;
-}
-
-message LogoutRequest {
-  string token = 1;
-}
-
-message LogoutResponse {
-}
-
 message CreateFileRequest {
-  string token = 1;
-  string path = 2;
-  Permissions permissions = 3;
+  string path = 1;
+  Permissions permissions = 2;
 }
 
 message CreateFileResponse {
 }
 
 message CreateDirRequest {
-  string token = 1;
-  string path = 2;
-  Permissions permissions = 3;
+  string path = 1;
+  Permissions permissions = 2;
 }
 
 message CreateDirResponse {
 }
 
 message DeleteFileRequest {
-  string token = 1;
-  string path = 2;
+  string path = 1;
 }
 
 message DeleteFileResponse {
@@ -93,16 +71,14 @@ message DeleteFileResponse {
 
 
 message DeleteDirRequest {
-  string token = 1;
-  string path = 2;
+  string path = 1;
 }
 
 message DeleteDirResponse {
 }
 
 message ListRequest {
-  string token = 1;
-  string path = 2;
+  string path = 1;
 }
 
 message ListResponse {
@@ -111,8 +87,7 @@ message ListResponse {
 }
 
 message StatRequest {
-  string token = 1;
-  string path = 2;
+  string path = 1;
 }
 
 message StatResponse {

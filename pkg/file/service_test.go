@@ -1,7 +1,8 @@
-package name_test
+package file_test
 
 import (
-	"github.com/cirglo.com/dfs/pkg/name"
+	"github.com/cirglo.com/dfs/pkg/file"
+	"github.com/cirglo.com/dfs/pkg/security"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
@@ -17,14 +18,14 @@ func createDB(t *testing.T) *gorm.DB {
 	})
 	assert.NoError(t, err)
 	err = db.AutoMigrate(
-		name.User{},
-		name.Group{},
-		name.Token{},
-		name.Permissions{},
-		name.FileInfo{},
-		name.Permission{},
-		name.BlockInfo{},
-		name.Location{})
+		security.User{},
+		security.Group{},
+		security.Token{},
+		security.Permissions{},
+		file.FileInfo{},
+		security.Permission{},
+		file.BlockInfo{},
+		file.Location{})
 	assert.NoError(t, err)
 
 	return db
@@ -40,9 +41,9 @@ func createLogger(t *testing.T) *logrus.Logger {
 func TestFileService_GetRootDir(t *testing.T) {
 	log := createLogger(t)
 	db := createDB(t)
-	p := name.NewRootPrincipal()
+	p := security.NewRootPrincipal()
 
-	service, err := name.NewFileService(name.FileServiceOpts{
+	service, err := file.NewService(file.ServiceOpts{
 		Logger: log,
 		DB:     db,
 	})
@@ -58,28 +59,28 @@ func TestFileService_GetRootDir(t *testing.T) {
 func TestFileService_CreateFile(t *testing.T) {
 	log := createLogger(t)
 	db := createDB(t)
-	p := name.NewRootPrincipal()
-	perms := name.Permissions{
+	p := security.NewRootPrincipal()
+	perms := security.Permissions{
 		Owner: "joe",
 		Group: "staff",
-		OwnerPermission: name.Permission{
+		OwnerPermission: security.Permission{
 			Read:   true,
 			Write:  true,
 			Delete: true,
 		},
-		GroupPermission: name.Permission{
+		GroupPermission: security.Permission{
 			Read:   true,
 			Write:  false,
 			Delete: true,
 		},
-		OtherPermission: name.Permission{
+		OtherPermission: security.Permission{
 			Read:   false,
 			Write:  false,
 			Delete: true,
 		},
 	}
 
-	service, err := name.NewFileService(name.FileServiceOpts{
+	service, err := file.NewService(file.ServiceOpts{
 		Logger: log,
 		DB:     db,
 	})
@@ -122,7 +123,7 @@ func TestFileService_GetAllBlockInfos_EmptyDB(t *testing.T) {
 	log := createLogger(t)
 	db := createDB(t)
 
-	service, err := name.NewFileService(name.FileServiceOpts{
+	service, err := file.NewService(file.ServiceOpts{
 		Logger: log,
 		DB:     db,
 	})
@@ -137,7 +138,7 @@ func TestFileService_NodeRemoved(t *testing.T) {
 	log := createLogger(t)
 	db := createDB(t)
 
-	service, err := name.NewFileService(name.FileServiceOpts{
+	service, err := file.NewService(file.ServiceOpts{
 		Logger: log,
 		DB:     db,
 	})
@@ -148,9 +149,9 @@ func TestFileService_NodeRemoved(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Add a node and then remove it
-	err = db.Create(&name.BlockInfo{
+	err = db.Create(&file.BlockInfo{
 		ID: "block1",
-		Locations: []name.Location{
+		Locations: []file.Location{
 			{Host: "host1"},
 		},
 	}).Error
@@ -160,7 +161,7 @@ func TestFileService_NodeRemoved(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify the node was removed
-	var blockInfo name.BlockInfo
+	var blockInfo file.BlockInfo
 	err = db.First(&blockInfo, "id = ?", "block1").Error
 	assert.NoError(t, err)
 	assert.Len(t, blockInfo.Locations, 0)

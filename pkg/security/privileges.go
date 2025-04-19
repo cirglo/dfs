@@ -1,4 +1,4 @@
-package name
+package security
 
 type Privileges struct {
 	Read   bool

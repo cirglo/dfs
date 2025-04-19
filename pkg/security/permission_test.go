@@ -1,7 +1,7 @@
-package name_test
+package security_test
 
 import (
-	"github.com/cirglo.com/dfs/pkg/name"
+	"github.com/cirglo.com/dfs/pkg/security"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestPermissions_BeforeSave_Valid(t *testing.T) {
-	permissions := &name.Permissions{
+	permissions := &security.Permissions{
 		Owner: "  valid_owner  ",
 		Group: "  valid_group  ",
 	}
@@ -21,7 +21,7 @@ func TestPermissions_BeforeSave_Valid(t *testing.T) {
 }
 
 func TestPermissions_BeforeSave_EmptyOwner(t *testing.T) {
-	permissions := &name.Permissions{
+	permissions := &security.Permissions{
 		Owner: "   ",
 		Group: "valid_group",
 	}
@@ -32,7 +32,7 @@ func TestPermissions_BeforeSave_EmptyOwner(t *testing.T) {
 }
 
 func TestPermissions_BeforeSave_EmptyGroup(t *testing.T) {
-	permissions := &name.Permissions{
+	permissions := &security.Permissions{
 		Owner: "valid_owner",
 		Group: "   ",
 	}

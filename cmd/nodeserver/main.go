@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/cirglo.com/dfs/pkg/node"
+	"github.com/cirglo.com/dfs/pkg/block"
 	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -55,7 +55,7 @@ func main() {
 	}
 	client := proto.NewNotificationClient(conn)
 
-	serviceOpts := node.BlockServiceOpts{
+	serviceOpts := block.Opts{
 		Logger:             log,
 		Host:               *hostFlag,
 		DB:                 db,
@@ -64,7 +64,7 @@ func main() {
 	}
 
 	log.Info("Creating block service")
-	blockService, err := node.NewBlockService(serviceOpts)
+	blockService, err := block.NewService(serviceOpts)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create block service")
 	}
@@ -76,7 +76,7 @@ func main() {
 	}
 
 	log.Info("Creating server")
-	nodeServer, err := node.NewServer(node.ServerOpts{
+	nodeServer, err := block.NewServer(block.ServerOpts{
 		Logger:            log,
 		BlockService:      blockService,
 		ConnectionFactory: connectionFactory,
@@ -145,7 +145,7 @@ func createDB(dialector gorm.Dialector) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not open database: %w", err)
 	}
-	err = db.AutoMigrate(node.BlockInfo{})
+	err = db.AutoMigrate(block.BlockInfo{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to auto migrate: %w", err)
 	}

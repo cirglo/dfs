@@ -1,8 +1,8 @@
-package name_test
+package healing_test
 
 import (
+	"github.com/cirglo.com/dfs/pkg/healing"
 	"github.com/cirglo.com/dfs/pkg/mocks"
-	"github.com/cirglo.com/dfs/pkg/name"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -13,14 +13,14 @@ func TestNewHealingService(t *testing.T) {
 	logger := logrus.New()
 	fileService := mocks.NewFileService(t)
 	connectionFactory := mocks.NewConnectionFactory(t)
-	opts := name.HealingOpts{
+	opts := healing.Opts{
 		Logger:            logger,
 		NumReplicas:       1,
 		FileService:       fileService,
 		NodeExpiration:    24 * time.Hour,
 		ConnectionFactory: connectionFactory,
 	}
-	service, err := name.NewHealingService(opts)
+	service, err := healing.NewService(opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, service)
 }

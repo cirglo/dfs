@@ -1,33 +1,33 @@
-package name_test
+package security_test
 
 import (
-	"github.com/cirglo.com/dfs/pkg/name"
+	"github.com/cirglo.com/dfs/pkg/security"
 	"testing"
 )
 
 type mockHasPermissions struct {
-	permissions name.Permissions
+	permissions security.Permissions
 }
 
-func (m mockHasPermissions) GetPermissions() name.Permissions {
+func (m mockHasPermissions) GetPermissions() security.Permissions {
 	return m.permissions
 }
 
 func TestPrincipal_ComputePrivileges(t *testing.T) {
 	tests := []struct {
 		name               string
-		principal          name.Principal
-		hasPermissionsList []name.HasPermissions
-		expected           name.Privileges
+		principal          security.Principal
+		hasPermissionsList []security.HasPermissions
+		expected           security.Privileges
 	}{
 		{
 			name: "No permissions",
-			principal: name.NewPrincipal(name.User{
+			principal: security.NewPrincipal(security.User{
 				Name:   "user1",
-				Groups: []*name.Group{},
+				Groups: []*security.Group{},
 			}),
-			hasPermissionsList: []name.HasPermissions{},
-			expected: name.Privileges{
+			hasPermissionsList: []security.HasPermissions{},
+			expected: security.Privileges{
 				Read:   false,
 				Write:  false,
 				Delete: false,
@@ -35,15 +35,15 @@ func TestPrincipal_ComputePrivileges(t *testing.T) {
 		},
 		{
 			name: "Owner permissions",
-			principal: name.NewPrincipal(name.User{
+			principal: security.NewPrincipal(security.User{
 				Name:   "user1",
-				Groups: []*name.Group{},
+				Groups: []*security.Group{},
 			}),
-			hasPermissionsList: []name.HasPermissions{
+			hasPermissionsList: []security.HasPermissions{
 				mockHasPermissions{
-					permissions: name.Permissions{
+					permissions: security.Permissions{
 						Owner: "user1",
-						OwnerPermission: name.Permission{
+						OwnerPermission: security.Permission{
 							Read:   true,
 							Write:  true,
 							Delete: true,
@@ -51,7 +51,7 @@ func TestPrincipal_ComputePrivileges(t *testing.T) {
 					},
 				},
 			},
-			expected: name.Privileges{
+			expected: security.Privileges{
 				Read:   true,
 				Write:  true,
 				Delete: true,
@@ -59,17 +59,17 @@ func TestPrincipal_ComputePrivileges(t *testing.T) {
 		},
 		{
 			name: "Group permissions",
-			principal: name.NewPrincipal(name.User{
+			principal: security.NewPrincipal(security.User{
 				Name: "user1",
-				Groups: []*name.Group{
+				Groups: []*security.Group{
 					{Name: "group1"},
 				},
 			}),
-			hasPermissionsList: []name.HasPermissions{
+			hasPermissionsList: []security.HasPermissions{
 				mockHasPermissions{
-					permissions: name.Permissions{
+					permissions: security.Permissions{
 						Group: "group1",
-						GroupPermission: name.Permission{
+						GroupPermission: security.Permission{
 							Read:   true,
 							Write:  false,
 							Delete: true,
@@ -77,7 +77,7 @@ func TestPrincipal_ComputePrivileges(t *testing.T) {
 					},
 				},
 			},
-			expected: name.Privileges{
+			expected: security.Privileges{
 				Read:   true,
 				Write:  false,
 				Delete: true,
@@ -85,11 +85,11 @@ func TestPrincipal_ComputePrivileges(t *testing.T) {
 		},
 		{
 			name:      "Root principal always has full privileges",
-			principal: name.NewRootPrincipal(),
-			hasPermissionsList: []name.HasPermissions{
+			principal: security.NewRootPrincipal(),
+			hasPermissionsList: []security.HasPermissions{
 				mockHasPermissions{
-					permissions: name.Permissions{
-						OwnerPermission: name.Permission{
+					permissions: security.Permissions{
+						OwnerPermission: security.Permission{
 							Read:   false,
 							Write:  false,
 							Delete: false,
@@ -97,7 +97,7 @@ func TestPrincipal_ComputePrivileges(t *testing.T) {
 					},
 				},
 			},
-			expected: name.Privileges{
+			expected: security.Privileges{
 				Read:   true,
 				Write:  true,
 				Delete: true,

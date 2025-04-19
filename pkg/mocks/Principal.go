@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	name "github.com/cirglo.com/dfs/pkg/name"
+	"github.com/cirglo.com/dfs/pkg/security"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -21,7 +21,7 @@ func (_m *Principal) EXPECT() *Principal_Expecter {
 }
 
 // ComputePrivileges provides a mock function with given fields: hasPermissionsList
-func (_m *Principal) ComputePrivileges(hasPermissionsList ...name.HasPermissions) name.Privileges {
+func (_m *Principal) ComputePrivileges(hasPermissionsList ...security.HasPermissions) security.Privileges {
 	_va := make([]interface{}, len(hasPermissionsList))
 	for _i := range hasPermissionsList {
 		_va[_i] = hasPermissionsList[_i]
@@ -34,11 +34,11 @@ func (_m *Principal) ComputePrivileges(hasPermissionsList ...name.HasPermissions
 		panic("no return value specified for ComputePrivileges")
 	}
 
-	var r0 name.Privileges
-	if rf, ok := ret.Get(0).(func(...name.HasPermissions) name.Privileges); ok {
+	var r0 security.Privileges
+	if rf, ok := ret.Get(0).(func(...security.HasPermissions) security.Privileges); ok {
 		r0 = rf(hasPermissionsList...)
 	} else {
-		r0 = ret.Get(0).(name.Privileges)
+		r0 = ret.Get(0).(security.Privileges)
 	}
 
 	return r0
@@ -56,12 +56,12 @@ func (_e *Principal_Expecter) ComputePrivileges(hasPermissionsList ...interface{
 		append([]interface{}{}, hasPermissionsList...)...)}
 }
 
-func (_c *Principal_ComputePrivileges_Call) Run(run func(hasPermissionsList ...name.HasPermissions)) *Principal_ComputePrivileges_Call {
+func (_c *Principal_ComputePrivileges_Call) Run(run func(hasPermissionsList ...security.HasPermissions)) *Principal_ComputePrivileges_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		variadicArgs := make([]name.HasPermissions, len(args)-0)
+		variadicArgs := make([]security.HasPermissions, len(args)-0)
 		for i, a := range args[0:] {
 			if a != nil {
-				variadicArgs[i] = a.(name.HasPermissions)
+				variadicArgs[i] = a.(security.HasPermissions)
 			}
 		}
 		run(variadicArgs...)
@@ -69,12 +69,12 @@ func (_c *Principal_ComputePrivileges_Call) Run(run func(hasPermissionsList ...n
 	return _c
 }
 
-func (_c *Principal_ComputePrivileges_Call) Return(_a0 name.Privileges) *Principal_ComputePrivileges_Call {
+func (_c *Principal_ComputePrivileges_Call) Return(_a0 security.Privileges) *Principal_ComputePrivileges_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Principal_ComputePrivileges_Call) RunAndReturn(run func(...name.HasPermissions) name.Privileges) *Principal_ComputePrivileges_Call {
+func (_c *Principal_ComputePrivileges_Call) RunAndReturn(run func(...security.HasPermissions) security.Privileges) *Principal_ComputePrivileges_Call {
 	_c.Call.Return(run)
 	return _c
 }

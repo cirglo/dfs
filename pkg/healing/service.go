@@ -1,9 +1,10 @@
-package name
+package healing
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cirglo.com/dfs/pkg/file"
 	"github.com/cirglo.com/dfs/pkg/proto"
 	"github.com/sirupsen/logrus"
 	"math/rand"
@@ -12,15 +13,15 @@ import (
 	"time"
 )
 
-type HealingOpts struct {
+type Opts struct {
 	Logger            *logrus.Logger
 	NumReplicas       uint
-	FileService       FileService
+	FileService       file.Service
 	NodeExpiration    time.Duration
 	ConnectionFactory proto.ConnectionFactory
 }
 
-func (o *HealingOpts) Validate() error {
+func (o *Opts) Validate() error {
 	if o.Logger == nil {
 		return fmt.Errorf("logger is required")
 	}
@@ -44,40 +45,40 @@ func (o *HealingOpts) Validate() error {
 	return nil
 }
 
-type HealingService interface {
+type Service interface {
 	NotifyNodeAlive(host string, at time.Time)
 	Heal(since time.Time) error
 }
 
-type healingService struct {
-	Opts  HealingOpts
+type service struct {
+	Opts  Opts
 	Nodes map[string]time.Time
 	Lock  sync.RWMutex
 }
 
-var _ HealingService = &healingService{}
+var _ Service = &service{}
 
-func NewHealingService(opts HealingOpts) (HealingService, error) {
+func NewService(opts Opts) (Service, error) {
 	err := opts.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("invalid options: %w", err)
 	}
 
-	return &healingService{
+	return &service{
 		Opts:  opts,
 		Nodes: map[string]time.Time{},
 		Lock:  sync.RWMutex{},
 	}, nil
 }
 
-func (s *healingService) NotifyNodeAlive(host string, at time.Time) {
+func (s *service) NotifyNodeAlive(host string, at time.Time) {
 	s.Lock.Lock()
 	defer s.Lock.Unlock()
 
 	s.Nodes[host] = at
 }
 
-func (s *healingService) Heal(since time.Time) error {
+func (s *service) Heal(since time.Time) error {
 	removedHosts := s.removeExpiredNodes(since)
 	var allErrors []error
 	for _, host := range removedHosts {
@@ -113,7 +114,7 @@ func (s *healingService) Heal(since time.Time) error {
 	return errors.Join(allErrors...)
 }
 
-func (s *healingService) removeExpiredNodes(since time.Time) []string {
+func (s *service) removeExpiredNodes(since time.Time) []string {
 	s.Lock.Lock()
 	defer s.Lock.Unlock()
 
@@ -134,7 +135,7 @@ func (s *healingService) removeExpiredNodes(since time.Time) []string {
 	return toRemove
 }
 
-func (s *healingService) checkBlock(blockInfo BlockInfo, currentLocations []string) {
+func (s *service) checkBlock(blockInfo file.BlockInfo, currentLocations []string) {
 	s.Lock.RLock()
 	defer s.Lock.RUnlock()
 
@@ -161,7 +162,7 @@ func (s *healingService) checkBlock(blockInfo BlockInfo, currentLocations []stri
 	}
 }
 
-func (s *healingService) findDestinations(currentLocations []string, count int) ([]string, bool) {
+func (s *service) findDestinations(currentLocations []string, count int) ([]string, bool) {
 	var candidates []string
 
 	for location := range s.Nodes {
@@ -180,7 +181,7 @@ func (s *healingService) findDestinations(currentLocations []string, count int) 
 	return candidates[:count], true
 }
 
-func (s *healingService) copyBlock(blockId string, source string, dest string) {
+func (s *service) copyBlock(blockId string, source string, dest string) {
 	connection, err := s.Opts.ConnectionFactory.CreateConnection(source)
 	if err != nil {
 		s.Opts.Logger.WithError(err).WithField("host", dest).Error("could not create connection")

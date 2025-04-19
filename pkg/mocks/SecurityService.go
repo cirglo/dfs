@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	name "github.com/cirglo.com/dfs/pkg/name"
+	name "github.com/cirglo.com/dfs/pkg/security"
 	mock "github.com/stretchr/testify/mock"
 )
 

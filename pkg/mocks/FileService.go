@@ -3,7 +3,8 @@
 package mocks
 
 import (
-	name "github.com/cirglo.com/dfs/pkg/name"
+	name "github.com/cirglo.com/dfs/pkg/file"
+	"github.com/cirglo.com/dfs/pkg/security"
 	mock "github.com/stretchr/testify/mock"
 
 	proto "github.com/cirglo.com/dfs/pkg/proto"
@@ -23,7 +24,7 @@ func (_m *FileService) EXPECT() *FileService_Expecter {
 }
 
 // CreateDir provides a mock function with given fields: p, path, perms
-func (_m *FileService) CreateDir(p name.Principal, path string, perms name.Permissions) (name.FileInfo, error) {
+func (_m *FileService) CreateDir(p security.Principal, path string, perms security.Permissions) (name.FileInfo, error) {
 	ret := _m.Called(p, path, perms)
 
 	if len(ret) == 0 {
@@ -32,16 +33,16 @@ func (_m *FileService) CreateDir(p name.Principal, path string, perms name.Permi
 
 	var r0 name.FileInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func(name.Principal, string, name.Permissions) (name.FileInfo, error)); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string, security.Permissions) (name.FileInfo, error)); ok {
 		return rf(p, path, perms)
 	}
-	if rf, ok := ret.Get(0).(func(name.Principal, string, name.Permissions) name.FileInfo); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string, security.Permissions) name.FileInfo); ok {
 		r0 = rf(p, path, perms)
 	} else {
 		r0 = ret.Get(0).(name.FileInfo)
 	}
 
-	if rf, ok := ret.Get(1).(func(name.Principal, string, name.Permissions) error); ok {
+	if rf, ok := ret.Get(1).(func(security.Principal, string, security.Permissions) error); ok {
 		r1 = rf(p, path, perms)
 	} else {
 		r1 = ret.Error(1)
@@ -63,9 +64,9 @@ func (_e *FileService_Expecter) CreateDir(p interface{}, path interface{}, perms
 	return &FileService_CreateDir_Call{Call: _e.mock.On("CreateDir", p, path, perms)}
 }
 
-func (_c *FileService_CreateDir_Call) Run(run func(p name.Principal, path string, perms name.Permissions)) *FileService_CreateDir_Call {
+func (_c *FileService_CreateDir_Call) Run(run func(p security.Principal, path string, perms security.Permissions)) *FileService_CreateDir_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(name.Principal), args[1].(string), args[2].(name.Permissions))
+		run(args[0].(security.Principal), args[1].(string), args[2].(security.Permissions))
 	})
 	return _c
 }
@@ -75,13 +76,13 @@ func (_c *FileService_CreateDir_Call) Return(_a0 name.FileInfo, _a1 error) *File
 	return _c
 }
 
-func (_c *FileService_CreateDir_Call) RunAndReturn(run func(name.Principal, string, name.Permissions) (name.FileInfo, error)) *FileService_CreateDir_Call {
+func (_c *FileService_CreateDir_Call) RunAndReturn(run func(security.Principal, string, security.Permissions) (name.FileInfo, error)) *FileService_CreateDir_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateFile provides a mock function with given fields: p, path, perms
-func (_m *FileService) CreateFile(p name.Principal, path string, perms name.Permissions) (name.FileInfo, error) {
+func (_m *FileService) CreateFile(p security.Principal, path string, perms security.Permissions) (name.FileInfo, error) {
 	ret := _m.Called(p, path, perms)
 
 	if len(ret) == 0 {
@@ -90,16 +91,16 @@ func (_m *FileService) CreateFile(p name.Principal, path string, perms name.Perm
 
 	var r0 name.FileInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func(name.Principal, string, name.Permissions) (name.FileInfo, error)); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string, security.Permissions) (name.FileInfo, error)); ok {
 		return rf(p, path, perms)
 	}
-	if rf, ok := ret.Get(0).(func(name.Principal, string, name.Permissions) name.FileInfo); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string, security.Permissions) name.FileInfo); ok {
 		r0 = rf(p, path, perms)
 	} else {
 		r0 = ret.Get(0).(name.FileInfo)
 	}
 
-	if rf, ok := ret.Get(1).(func(name.Principal, string, name.Permissions) error); ok {
+	if rf, ok := ret.Get(1).(func(security.Principal, string, security.Permissions) error); ok {
 		r1 = rf(p, path, perms)
 	} else {
 		r1 = ret.Error(1)
@@ -121,9 +122,9 @@ func (_e *FileService_Expecter) CreateFile(p interface{}, path interface{}, perm
 	return &FileService_CreateFile_Call{Call: _e.mock.On("CreateFile", p, path, perms)}
 }
 
-func (_c *FileService_CreateFile_Call) Run(run func(p name.Principal, path string, perms name.Permissions)) *FileService_CreateFile_Call {
+func (_c *FileService_CreateFile_Call) Run(run func(p security.Principal, path string, perms security.Permissions)) *FileService_CreateFile_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(name.Principal), args[1].(string), args[2].(name.Permissions))
+		run(args[0].(security.Principal), args[1].(string), args[2].(security.Permissions))
 	})
 	return _c
 }
@@ -133,13 +134,13 @@ func (_c *FileService_CreateFile_Call) Return(_a0 name.FileInfo, _a1 error) *Fil
 	return _c
 }
 
-func (_c *FileService_CreateFile_Call) RunAndReturn(run func(name.Principal, string, name.Permissions) (name.FileInfo, error)) *FileService_CreateFile_Call {
+func (_c *FileService_CreateFile_Call) RunAndReturn(run func(security.Principal, string, security.Permissions) (name.FileInfo, error)) *FileService_CreateFile_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteDir provides a mock function with given fields: p, path
-func (_m *FileService) DeleteDir(p name.Principal, path string) error {
+func (_m *FileService) DeleteDir(p security.Principal, path string) error {
 	ret := _m.Called(p, path)
 
 	if len(ret) == 0 {
@@ -147,7 +148,7 @@ func (_m *FileService) DeleteDir(p name.Principal, path string) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(name.Principal, string) error); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string) error); ok {
 		r0 = rf(p, path)
 	} else {
 		r0 = ret.Error(0)
@@ -168,9 +169,9 @@ func (_e *FileService_Expecter) DeleteDir(p interface{}, path interface{}) *File
 	return &FileService_DeleteDir_Call{Call: _e.mock.On("DeleteDir", p, path)}
 }
 
-func (_c *FileService_DeleteDir_Call) Run(run func(p name.Principal, path string)) *FileService_DeleteDir_Call {
+func (_c *FileService_DeleteDir_Call) Run(run func(p security.Principal, path string)) *FileService_DeleteDir_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(name.Principal), args[1].(string))
+		run(args[0].(security.Principal), args[1].(string))
 	})
 	return _c
 }
@@ -180,13 +181,13 @@ func (_c *FileService_DeleteDir_Call) Return(_a0 error) *FileService_DeleteDir_C
 	return _c
 }
 
-func (_c *FileService_DeleteDir_Call) RunAndReturn(run func(name.Principal, string) error) *FileService_DeleteDir_Call {
+func (_c *FileService_DeleteDir_Call) RunAndReturn(run func(security.Principal, string) error) *FileService_DeleteDir_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteFile provides a mock function with given fields: p, path
-func (_m *FileService) DeleteFile(p name.Principal, path string) error {
+func (_m *FileService) DeleteFile(p security.Principal, path string) error {
 	ret := _m.Called(p, path)
 
 	if len(ret) == 0 {
@@ -194,7 +195,7 @@ func (_m *FileService) DeleteFile(p name.Principal, path string) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(name.Principal, string) error); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string) error); ok {
 		r0 = rf(p, path)
 	} else {
 		r0 = ret.Error(0)
@@ -215,9 +216,9 @@ func (_e *FileService_Expecter) DeleteFile(p interface{}, path interface{}) *Fil
 	return &FileService_DeleteFile_Call{Call: _e.mock.On("DeleteFile", p, path)}
 }
 
-func (_c *FileService_DeleteFile_Call) Run(run func(p name.Principal, path string)) *FileService_DeleteFile_Call {
+func (_c *FileService_DeleteFile_Call) Run(run func(p security.Principal, path string)) *FileService_DeleteFile_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(name.Principal), args[1].(string))
+		run(args[0].(security.Principal), args[1].(string))
 	})
 	return _c
 }
@@ -227,7 +228,7 @@ func (_c *FileService_DeleteFile_Call) Return(_a0 error) *FileService_DeleteFile
 	return _c
 }
 
-func (_c *FileService_DeleteFile_Call) RunAndReturn(run func(name.Principal, string) error) *FileService_DeleteFile_Call {
+func (_c *FileService_DeleteFile_Call) RunAndReturn(run func(security.Principal, string) error) *FileService_DeleteFile_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -290,7 +291,7 @@ func (_c *FileService_GetAllBlockInfos_Call) RunAndReturn(run func() ([]name.Blo
 }
 
 // GetBlockInfos provides a mock function with given fields: p, path
-func (_m *FileService) GetBlockInfos(p name.Principal, path string) ([]name.BlockInfo, error) {
+func (_m *FileService) GetBlockInfos(p security.Principal, path string) ([]name.BlockInfo, error) {
 	ret := _m.Called(p, path)
 
 	if len(ret) == 0 {
@@ -299,10 +300,10 @@ func (_m *FileService) GetBlockInfos(p name.Principal, path string) ([]name.Bloc
 
 	var r0 []name.BlockInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func(name.Principal, string) ([]name.BlockInfo, error)); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string) ([]name.BlockInfo, error)); ok {
 		return rf(p, path)
 	}
-	if rf, ok := ret.Get(0).(func(name.Principal, string) []name.BlockInfo); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string) []name.BlockInfo); ok {
 		r0 = rf(p, path)
 	} else {
 		if ret.Get(0) != nil {
@@ -310,7 +311,7 @@ func (_m *FileService) GetBlockInfos(p name.Principal, path string) ([]name.Bloc
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(name.Principal, string) error); ok {
+	if rf, ok := ret.Get(1).(func(security.Principal, string) error); ok {
 		r1 = rf(p, path)
 	} else {
 		r1 = ret.Error(1)
@@ -331,9 +332,9 @@ func (_e *FileService_Expecter) GetBlockInfos(p interface{}, path interface{}) *
 	return &FileService_GetBlockInfos_Call{Call: _e.mock.On("GetBlockInfos", p, path)}
 }
 
-func (_c *FileService_GetBlockInfos_Call) Run(run func(p name.Principal, path string)) *FileService_GetBlockInfos_Call {
+func (_c *FileService_GetBlockInfos_Call) Run(run func(p security.Principal, path string)) *FileService_GetBlockInfos_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(name.Principal), args[1].(string))
+		run(args[0].(security.Principal), args[1].(string))
 	})
 	return _c
 }
@@ -343,13 +344,13 @@ func (_c *FileService_GetBlockInfos_Call) Return(_a0 []name.BlockInfo, _a1 error
 	return _c
 }
 
-func (_c *FileService_GetBlockInfos_Call) RunAndReturn(run func(name.Principal, string) ([]name.BlockInfo, error)) *FileService_GetBlockInfos_Call {
+func (_c *FileService_GetBlockInfos_Call) RunAndReturn(run func(security.Principal, string) ([]name.BlockInfo, error)) *FileService_GetBlockInfos_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function with given fields: p, path
-func (_m *FileService) List(p name.Principal, path string) ([]name.FileInfo, error) {
+func (_m *FileService) List(p security.Principal, path string) ([]name.FileInfo, error) {
 	ret := _m.Called(p, path)
 
 	if len(ret) == 0 {
@@ -358,10 +359,10 @@ func (_m *FileService) List(p name.Principal, path string) ([]name.FileInfo, err
 
 	var r0 []name.FileInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func(name.Principal, string) ([]name.FileInfo, error)); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string) ([]name.FileInfo, error)); ok {
 		return rf(p, path)
 	}
-	if rf, ok := ret.Get(0).(func(name.Principal, string) []name.FileInfo); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string) []name.FileInfo); ok {
 		r0 = rf(p, path)
 	} else {
 		if ret.Get(0) != nil {
@@ -369,7 +370,7 @@ func (_m *FileService) List(p name.Principal, path string) ([]name.FileInfo, err
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(name.Principal, string) error); ok {
+	if rf, ok := ret.Get(1).(func(security.Principal, string) error); ok {
 		r1 = rf(p, path)
 	} else {
 		r1 = ret.Error(1)
@@ -390,9 +391,9 @@ func (_e *FileService_Expecter) List(p interface{}, path interface{}) *FileServi
 	return &FileService_List_Call{Call: _e.mock.On("List", p, path)}
 }
 
-func (_c *FileService_List_Call) Run(run func(p name.Principal, path string)) *FileService_List_Call {
+func (_c *FileService_List_Call) Run(run func(p security.Principal, path string)) *FileService_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(name.Principal), args[1].(string))
+		run(args[0].(security.Principal), args[1].(string))
 	})
 	return _c
 }
@@ -402,7 +403,7 @@ func (_c *FileService_List_Call) Return(_a0 []name.FileInfo, _a1 error) *FileSer
 	return _c
 }
 
-func (_c *FileService_List_Call) RunAndReturn(run func(name.Principal, string) ([]name.FileInfo, error)) *FileService_List_Call {
+func (_c *FileService_List_Call) RunAndReturn(run func(security.Principal, string) ([]name.FileInfo, error)) *FileService_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -592,7 +593,7 @@ func (_c *FileService_NotifyBlockRemoved_Call) RunAndReturn(run func(*proto.Noti
 }
 
 // Stat provides a mock function with given fields: p, path
-func (_m *FileService) Stat(p name.Principal, path string) (name.FileInfo, error) {
+func (_m *FileService) Stat(p security.Principal, path string) (name.FileInfo, error) {
 	ret := _m.Called(p, path)
 
 	if len(ret) == 0 {
@@ -601,16 +602,16 @@ func (_m *FileService) Stat(p name.Principal, path string) (name.FileInfo, error
 
 	var r0 name.FileInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func(name.Principal, string) (name.FileInfo, error)); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string) (name.FileInfo, error)); ok {
 		return rf(p, path)
 	}
-	if rf, ok := ret.Get(0).(func(name.Principal, string) name.FileInfo); ok {
+	if rf, ok := ret.Get(0).(func(security.Principal, string) name.FileInfo); ok {
 		r0 = rf(p, path)
 	} else {
 		r0 = ret.Get(0).(name.FileInfo)
 	}
 
-	if rf, ok := ret.Get(1).(func(name.Principal, string) error); ok {
+	if rf, ok := ret.Get(1).(func(security.Principal, string) error); ok {
 		r1 = rf(p, path)
 	} else {
 		r1 = ret.Error(1)
@@ -631,9 +632,9 @@ func (_e *FileService_Expecter) Stat(p interface{}, path interface{}) *FileServi
 	return &FileService_Stat_Call{Call: _e.mock.On("Stat", p, path)}
 }
 
-func (_c *FileService_Stat_Call) Run(run func(p name.Principal, path string)) *FileService_Stat_Call {
+func (_c *FileService_Stat_Call) Run(run func(p security.Principal, path string)) *FileService_Stat_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(name.Principal), args[1].(string))
+		run(args[0].(security.Principal), args[1].(string))
 	})
 	return _c
 }
@@ -643,7 +644,7 @@ func (_c *FileService_Stat_Call) Return(_a0 name.FileInfo, _a1 error) *FileServi
 	return _c
 }
 
-func (_c *FileService_Stat_Call) RunAndReturn(run func(name.Principal, string) (name.FileInfo, error)) *FileService_Stat_Call {
+func (_c *FileService_Stat_Call) RunAndReturn(run func(security.Principal, string) (name.FileInfo, error)) *FileService_Stat_Call {
 	_c.Call.Return(run)
 	return _c
 }

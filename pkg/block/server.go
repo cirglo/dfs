@@ -1,4 +1,4 @@
-package node
+package block
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 type ServerOpts struct {
 	Logger            *logrus.Logger
-	BlockService      BlockService
+	BlockService      Service
 	ConnectionFactory proto.ConnectionFactory
 }
 

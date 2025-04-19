@@ -1,4 +1,4 @@
-package name
+package security
 
 type Principal interface {
 	ComputePrivileges(hasPermissionsList ...HasPermissions) Privileges
